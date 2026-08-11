@@ -1,0 +1,46 @@
+import { MenuItem } from '../types';
+
+export const INITIAL_MENU: MenuItem[] = [
+  {
+    id: 'm1',
+    name: '惡龍漢堡套餐',
+    price: 30000,
+    category: '室內套餐',
+    description: '經典雙層惡龍肉排佐特調火龍醬汁與香脆薯條'
+  },
+  {
+    id: 'm2',
+    name: '炸魚我最行套餐',
+    price: 30000,
+    category: '室外套餐',
+    description: '野生海域現撈鮮炸魚排配上香氣滿滿塔塔醬'
+  },
+  {
+    id: 'm3',
+    name: '野生香蕉果昔',
+    price: 15000,
+    category: '室內外點心',
+    description: '濃郁天然香蕉特調現打冰沙'
+  },
+  {
+    id: 'm4',
+    name: '無花果餅乾',
+    price: 5000,
+    category: '室內外點心',
+    description: '酥脆手工烘焙無花果風味一口餅'
+  },
+  {
+    id: 'm5',
+    name: '羅蘭莓優酪奶昔',
+    price: 15000,
+    category: '室內外點心',
+    description: '酸甜羅蘭莓搭配優格清爽提神'
+  },
+  {
+    id: 'm6',
+    name: '小圓餅',
+    price: 5000,
+    category: '室內外點心',
+    description: '古早味經典香甜小圓煎餅'
+  }
+];

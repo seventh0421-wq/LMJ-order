@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .retro-border {
+    border: 4px solid #b91c1c;
+    box-shadow: 6px 6px 0px #ea580c;
+    border-radius: 12px;
+    background-color: #ffffff;
+  }
+
+  .retro-border-blue {
+    border: 4px solid #1e40af;
+    box-shadow: 6px 6px 0px #2563eb;
+    border-radius: 12px;
+    background-color: #ffffff;
+  }
+
+  .retro-btn {
+    background-color: #ea580c;
+    color: #ffffff;
+    border: 3px solid #7f1d1d;
+    box-shadow: 4px 4px 0px #7f1d1d;
+    border-radius: 8px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease, filter 0.15s ease;
+    cursor: pointer;
+    font-weight: 800;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+
+  .retro-btn:hover {
+    filter: brightness(1.08);
+  }
+
+  .retro-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0px #7f1d1d;
+  }
+
+  .retro-btn-green {
+    background-color: #16a34a;
+    border-color: #14532d;
+    box-shadow: 4px 4px 0px #14532d;
+  }
+  .retro-btn-green:active {
+    box-shadow: 1px 1px 0px #14532d;
+  }
+
+  .retro-btn-gray {
+    background-color: #4b5563;
+    border-color: #1f2937;
+    box-shadow: 4px 4px 0px #1f2937;
+  }
+  .retro-btn-gray:active {
+    box-shadow: 1px 1px 0px #1f2937;
+  }
+
+  .retro-btn-red {
+    background-color: #dc2626;
+    border-color: #7f1d1d;
+    box-shadow: 4px 4px 0px #7f1d1d;
+  }
+  .retro-btn-red:active {
+    box-shadow: 1px 1px 0px #7f1d1d;
+  }
+
+  .retro-title {
+    color: #b91c1c;
+    text-shadow: 2px 2px 0px #fde047, -1px -1px 0px #7f1d1d;
+    font-family: 'Noto Sans TC', 'M PLUS Rounded 1c', 'Noto Serif TC', sans-serif;
+    font-weight: 900;
+  }
+
+  .font-dela {
+    font-family: 'Noto Sans TC', 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+  }
+
+  .font-kuaile {
+    font-family: 'M PLUS Rounded 1c', 'Noto Sans TC', sans-serif;
+    font-weight: 800;
+  }
+
+  .tab-btn.active {
+    background-color: #b91c1c !important;
+    box-shadow: inset 3px 3px 0px #7f1d1d !important;
+    transform: translate(2px, 2px);
+  }
+}
+
+body {
+  background-color: #fef3c7;
+  background-image: radial-gradient(#fcd34d 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+  color: #1f2937;
+  font-family: 'Noto Sans TC', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0.02em;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #fef3c7;
+}
+::-webkit-scrollbar-thumb {
+  background: #ea580c;
+  border-radius: 4px;
+}
