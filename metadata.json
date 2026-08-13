@@ -1,5 +1,5 @@
 {
-  "name": "龍麥呷 自助點餐機",
+  "name": "★ 龍麥呷．自助點餐機 ★",
   "description": "龍麥呷復古風自助點餐與後台管理系統",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

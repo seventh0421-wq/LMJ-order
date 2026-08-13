@@ -1,4 +1,4 @@
-export type CategoryType = '室內套餐' | '室外套餐' | '室內外點心';
+export type CategoryType = '室內套餐' | '戶外套餐' | '室內外點心';
 
 export interface MenuItem {
   id: string;

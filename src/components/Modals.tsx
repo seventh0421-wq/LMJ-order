@@ -339,7 +339,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               className="w-full border-2 border-red-700 p-2 rounded-lg font-bold bg-amber-50"
             >
               <option value="室內套餐">🔥 室內套餐</option>
-              <option value="室外套餐">🌊 室外套餐</option>
+              <option value="戶外套餐">🌊 戶外套餐</option>
               <option value="室內外點心">⚡ 室內外點心</option>
             </select>
           </div>

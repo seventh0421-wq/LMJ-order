@@ -249,7 +249,7 @@ export const BackView: React.FC<BackViewProps> = ({
 
     const categorizedItems: Record<CategoryType, Record<string, number>> = {
       '室內套餐': {},
-      '室外套餐': {},
+      '戶外套餐': {},
       '室內外點心': {},
     };
 
@@ -274,13 +274,13 @@ export const BackView: React.FC<BackViewProps> = ({
       });
     }
 
-    if (Object.keys(categorizedItems['室外套餐']).length > 0 && !completedCats['室外套餐']) {
+    if (Object.keys(categorizedItems['戶外套餐']).length > 0 && !completedCats['戶外套餐']) {
       pendingOuter.push({
         orderKey: order.id,
         orderId: order.shortId,
-        category: '室外套餐',
+        category: '戶外套餐',
         time: timeString,
-        items: categorizedItems['室外套餐'],
+        items: categorizedItems['戶外套餐'],
       });
     }
 
@@ -686,16 +686,16 @@ export const BackView: React.FC<BackViewProps> = ({
             </div>
           </div>
 
-          {/* 2. 外場區塊 (🌊 室外套餐) */}
+          {/* 2. 外場區塊 (🌊 戶外套餐) */}
           <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-300 shadow-sm flex flex-col">
             <h3 className="text-2xl text-blue-800 font-extrabold mb-3 border-b-2 border-blue-300 pb-2 text-center flex items-center justify-center gap-2">
               <Waves className="w-6 h-6 text-blue-600" />
-              🌊 室外套餐區
+              🌊 戶外套餐區
             </h3>
             <div id="pending-orders-outer" className="space-y-3 flex-1">
               {pendingOuter.length === 0 ? (
                 <div className="text-gray-400 font-bold text-center py-8">
-                  目前無室外套餐待辦
+                  目前無戶外套餐待辦
                 </div>
               ) : (
                 pendingOuter.map((p, idx) => (
@@ -724,7 +724,7 @@ export const BackView: React.FC<BackViewProps> = ({
                       </ul>
                     </div>
                     <button
-                      onClick={() => onTakeOrder(p.orderKey, '室外套餐')}
+                      onClick={() => onTakeOrder(p.orderKey, '戶外套餐')}
                       className="retro-btn w-full py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
                     >
                       <CheckCircle className="w-4 h-4" /> 確認並接單

@@ -22,7 +22,7 @@ export const FrontView: React.FC<FrontViewProps> = ({
   onSubmitOrder,
   businessHoursConfig,
 }) => {
-  const categories: CategoryType[] = ['室內套餐', '室外套餐', '室內外點心'];
+  const categories: CategoryType[] = ['室內套餐', '戶外套餐', '室內外點心'];
 
   const storeStatus = checkIsBusinessOpen(businessHoursConfig);
 
@@ -75,7 +75,7 @@ export const FrontView: React.FC<FrontViewProps> = ({
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-bold bg-red-700 text-white inline-block px-4 py-1.5 rounded-lg shadow-md border-2 border-red-900 tracking-wider font-dela">
                     {category === '室內套餐' && '🔥 '}
-                    {category === '室外套餐' && '🌊 '}
+                    {category === '戶外套餐' && '🌊 '}
                     {category === '室內外點心' && '⚡ '}
                     {category}
                   </h3>

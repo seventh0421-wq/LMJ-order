@@ -50,10 +50,41 @@ export default function App() {
     localStorage.setItem('longmai_business_hours', JSON.stringify(newConfig));
   };
 
-  // Load stored state or set defaults
+  // Load stored state or set defaults with auto-migration
   const [menuItems, setMenuItems] = useState<MenuItem[]>(() => {
     const saved = localStorage.getItem('longmai_menu');
-    return saved ? JSON.parse(saved) : INITIAL_MENU;
+    let items: MenuItem[] = saved ? JSON.parse(saved) : INITIAL_MENU;
+    let updated = false;
+
+    items = items.map((item) => {
+      let cat = item.category as string;
+      if (cat === '室外套餐') {
+        cat = '戶外套餐';
+        updated = true;
+      }
+      if (item.name === '炸魚我最行套餐' && cat !== '室內套餐') {
+        cat = '室內套餐';
+        updated = true;
+      }
+      return { ...item, category: cat as CategoryType };
+    });
+
+    if (!items.some((i) => i.name === '戶外享用套餐')) {
+      items.push({
+        id: 'm7',
+        name: '戶外享用套餐',
+        price: 25000,
+        category: '戶外套餐',
+        description: '戶外享用風味餐點包，配料豐富適合露營與戶外饗宴',
+      });
+      updated = true;
+    }
+
+    if (updated || !saved) {
+      localStorage.setItem('longmai_menu', JSON.stringify(items));
+    }
+
+    return items;
   });
 
   const [cart, setCart] = useState<CartItem[]>([]);

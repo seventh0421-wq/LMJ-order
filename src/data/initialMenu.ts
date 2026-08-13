@@ -12,8 +12,15 @@ export const INITIAL_MENU: MenuItem[] = [
     id: 'm2',
     name: '炸魚我最行套餐',
     price: 30000,
-    category: '室外套餐',
+    category: '室內套餐',
     description: '野生海域現撈鮮炸魚排配上香氣滿滿塔塔醬'
+  },
+  {
+    id: 'm7',
+    name: '戶外享用套餐',
+    price: 25000,
+    category: '戶外套餐',
+    description: '戶外享用風味餐點包，配料豐富適合露營與戶外饗宴'
   },
   {
     id: 'm3',
