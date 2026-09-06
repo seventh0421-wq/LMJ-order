@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShoppingBag, ShieldCheck, Flame } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShoppingBag } from 'lucide-react';
 
 const HamburgerIcon = ({ className = "w-9 h-9" }: { className?: string }) => (
   <svg
@@ -71,12 +71,51 @@ export const RetroHeader: React.FC<RetroHeaderProps> = ({
   onTabChange,
   pendingCount,
 }) => {
+  const [clickCount, setClickCount] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleHamburgerClick = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    const nextCount = clickCount + 1;
+    if (nextCount >= 3) {
+      setClickCount(0);
+      onTabChange('back');
+    } else {
+      setClickCount(nextCount);
+      timerRef.current = setTimeout(() => {
+        setClickCount(0);
+      }, 1500);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <header className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center mb-8 gap-3 px-2">
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <div className="bg-amber-300 p-2.5 sm:p-3 rounded-2xl border-4 border-red-700 shadow-[4px_4px_0px_#7f1d1d] animate-bounce shrink-0">
+        <button
+          type="button"
+          id="btn-hamburger-admin"
+          onClick={handleHamburgerClick}
+          title="★ 龍麥呷"
+          className="relative bg-amber-300 p-2.5 sm:p-3 rounded-2xl border-4 border-red-700 shadow-[4px_4px_0px_#7f1d1d] animate-bounce shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform focus:outline-none"
+        >
           <HamburgerIcon className="w-9 h-9 sm:w-11 sm:h-11 text-red-700" />
-        </div>
+          {pendingCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-yellow-300 shadow-xs animate-bounce">
+              {pendingCount}
+            </span>
+          )}
+        </button>
         <h1 className="retro-title text-3xl sm:text-4xl md:text-5xl tracking-wider m-0">
           ★ 龍麥呷．自助點餐機 ★
         </h1>
@@ -98,22 +137,6 @@ export const RetroHeader: React.FC<RetroHeaderProps> = ({
           客人點餐
         </button>
       </div>
-
-      {/* 隱密角落後台入口 (Discrete Corner Admin Button) */}
-      <button
-        id="btn-back"
-        onClick={() => onTabChange('back')}
-        title="後台管理（員工專用）"
-        className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-40 bg-white/80 hover:bg-white text-gray-600 hover:text-red-700 p-2 sm:px-3 sm:py-2 rounded-full border-2 border-red-300 shadow-md backdrop-blur-xs transition-all flex items-center gap-1.5 text-xs font-bold hover:scale-105 active:scale-95 group"
-      >
-        <ShieldCheck className="w-4 h-4 text-red-600 group-hover:rotate-12 transition-transform" />
-        <span className="hidden sm:inline opacity-80 group-hover:opacity-100">管理後台</span>
-        {pendingCount > 0 && (
-          <span className="bg-red-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full border border-yellow-300 animate-bounce">
-            {pendingCount}
-          </span>
-        )}
-      </button>
     </header>
   );
 };

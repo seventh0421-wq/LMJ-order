@@ -96,9 +96,9 @@ export default function App() {
 
   const [password, setPassword] = useState<string>(() => {
     const saved = localStorage.getItem('longmai_password');
-    if (!saved || saved === '0000') {
-      localStorage.setItem('longmai_password', 'ff140822');
-      return 'ff140822';
+    if (!saved || saved === '0000' || saved === 'ff140822' || saved !== 'ff1408221213') {
+      localStorage.setItem('longmai_password', 'ff1408221213');
+      return 'ff1408221213';
     }
     return saved;
   });
