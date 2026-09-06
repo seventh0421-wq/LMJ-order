@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CategoryType } from '../types';
-import { KeyRound, UserCheck, Plus, ShieldAlert, X, User, Send } from 'lucide-react';
+import { KeyRound, UserCheck, Plus, ShieldAlert, X, User, Send, AlertTriangle } from 'lucide-react';
+import { checkIsForbiddenStaffName } from '../lib/validation';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -53,22 +54,33 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
 }) => {
   const [customerName, setCustomerName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       setIsSubmitting(false);
+      setShowWarning(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const forbiddenResult = checkIsForbiddenStaffName(customerName);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (forbiddenResult.isForbidden) {
+      setShowWarning(true);
+      return;
+    }
+
     setIsSubmitting(true);
     const finalName = customerName.trim() || `玩家_${Math.floor(100 + Math.random() * 900)}`;
     onSubmit(finalName);
     setCustomerName('');
+    setShowWarning(false);
   };
 
   return (
@@ -100,14 +112,34 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
           <input
             type="text"
             value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
+            onChange={(e) => {
+              setCustomerName(e.target.value);
+              if (showWarning) setShowWarning(false);
+            }}
             placeholder="請輸入正確的遊戲 ID..."
             autoFocus
             maxLength={20}
-            className="w-full border-4 border-red-700 p-3 text-2xl rounded-xl mb-6 text-center font-black bg-amber-50 focus:outline-none focus:ring-4 focus:ring-amber-300 tracking-wide"
+            className={`w-full border-4 p-3 text-2xl rounded-xl mb-3 text-center font-black bg-amber-50 focus:outline-none tracking-wide transition-all ${
+              forbiddenResult.isForbidden || showWarning
+                ? 'border-rose-600 bg-rose-50 text-rose-800 ring-4 ring-rose-300'
+                : 'border-red-700 focus:ring-4 focus:ring-amber-300'
+            }`}
           />
 
-          <div className="flex justify-between gap-4">
+          {/* 店員名字禁用警告 */}
+          {(forbiddenResult.isForbidden || showWarning) && (
+            <div className="mb-5 p-3.5 bg-rose-600 text-white rounded-xl border-3 border-rose-950 shadow-lg text-center animate-bounce">
+              <div className="flex items-center justify-center gap-1.5 text-lg font-black font-dela tracking-wider">
+                <AlertTriangle className="w-5 h-5 text-yellow-300 shrink-0" />
+                <span>你連自己名字都忘了？</span>
+              </div>
+              <p className="text-xs font-bold text-rose-100 mt-1">
+                ※ 偵測到使用店員名稱（包含數字與符號組合），禁止使用！請輸入顧客您本人的遊戲 ID。
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-between gap-4 mt-2">
             <button
               type="button"
               onClick={onCancel}
@@ -117,8 +149,12 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="retro-btn px-4 py-2.5 text-lg retro-btn-green flex-1 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || forbiddenResult.isForbidden}
+              className={`retro-btn px-4 py-2.5 text-lg flex-1 flex items-center justify-center gap-1.5 transition-all ${
+                forbiddenResult.isForbidden
+                  ? 'bg-gray-400 border-gray-600 text-gray-200 cursor-not-allowed opacity-60'
+                  : 'retro-btn-green'
+              }`}
             >
               <Send className="w-5 h-5" />
               {isSubmitting ? '處理中...' : '確認送出'}
@@ -271,6 +307,7 @@ interface AddItemModalProps {
     price: number;
     category: CategoryType;
     description: string;
+    stock?: number | null;
   }) => void;
   onCancel: () => void;
 }
@@ -284,6 +321,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
   const [price, setPrice] = useState<number>(10000);
   const [category, setCategory] = useState<CategoryType>('室內套餐');
   const [description, setDescription] = useState('');
+  const [stock, setStock] = useState<number | null>(20);
 
   if (!isOpen) return null;
 
@@ -295,10 +333,12 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
       price: Number(price),
       category,
       description: description.trim(),
+      stock,
     });
     setName('');
     setPrice(10000);
     setDescription('');
+    setStock(20);
   };
 
   return (
@@ -370,6 +410,35 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               placeholder="簡短介紹該餐點特色"
               className="w-full border-2 border-red-700 p-2 rounded-lg font-bold bg-amber-50"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              初始庫存數量 (份)：
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                value={stock === null ? '' : stock}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStock(val === '' ? null : Math.max(0, parseInt(val, 10) || 0));
+                }}
+                placeholder="留空為不限庫存"
+                className="w-full border-2 border-red-700 p-2 rounded-lg font-bold bg-amber-50"
+              />
+              <button
+                type="button"
+                onClick={() => setStock(stock === null ? 20 : null)}
+                className="retro-btn text-xs px-3 py-2 font-black whitespace-nowrap bg-stone-100 hover:bg-stone-200 border-stone-400 shrink-0"
+              >
+                {stock === null ? '改設具體數量' : '改為不限'}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500 font-bold mt-1">
+              留空代表無限量供應；若填入具體數字（如 20），售完即自動下架。
+            </p>
           </div>
 
           <div className="flex justify-between gap-4 pt-2">

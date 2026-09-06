@@ -205,8 +205,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           <div className="text-center mb-5">
             <motion.div
               initial={{ scale: 0 }}
-              animate={{ scale: [0, 1.25, 1] }}
-              transition={{ delay: 0.15, duration: 0.5, type: 'spring' }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.15, type: 'spring', stiffness: 420, damping: 14 }}
               className="inline-flex items-center justify-center p-3.5 bg-gradient-to-br from-yellow-300 to-amber-500 rounded-full border-4 border-red-700 shadow-lg mb-3"
             >
               <PartyPopper className="w-10 h-10 text-red-800 animate-bounce" />
@@ -292,7 +292,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           {/* Instructions Box */}
           <div className="bg-amber-100/90 border-2 border-amber-400 rounded-xl p-3 sm:p-4 mb-6 text-center text-xs sm:text-sm font-bold text-amber-950 leading-relaxed">
             📢 <strong className="text-red-700">取餐提醒：</strong>
-            請記住您的遊戲 ID<strong>【 {orderData.shortId} 】</strong>，並至現場櫃檯等候唱號領餐及付款。祝您用餐愉快！
+            請待在你點餐的區域，等待店員送上餐點並付款，祝您用餐不愉快！
           </div>
 
           {/* Action Buttons */}

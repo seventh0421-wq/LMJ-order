@@ -9,9 +9,11 @@ import {
   subscribeOrders,
   pushOrderToFirebase,
   updateOrderInFirebase,
+  deleteSingleOrderInFirebase,
   clearAllOrdersInFirebase,
 } from './lib/firebase';
 import { sendNewOrderDiscordNotification } from './lib/webhook';
+import { checkIsForbiddenStaffName } from './lib/validation';
 
 import {
   AlertModal,
@@ -68,7 +70,12 @@ export default function App() {
         cat = '室內套餐';
         updated = true;
       }
-      return { ...item, category: cat as CategoryType };
+      let stock = item.stock;
+      if (stock === undefined) {
+        stock = item.isSoldOut ? 0 : 20;
+        updated = true;
+      }
+      return { ...item, category: cat as CategoryType, stock };
     });
 
     if (!items.some((i) => i.name === '戶外享用套餐')) {
@@ -231,6 +238,23 @@ export default function App() {
       return;
     }
 
+    const isSoldOut = Boolean(item.isSoldOut) || (item.stock !== undefined && item.stock !== null && item.stock <= 0);
+    if (isSoldOut) {
+      showAlert(`【${item.name}】目前已賣完售罄，無法點購！`, '餐點已售完');
+      return;
+    }
+
+    if (item.stock !== undefined && item.stock !== null) {
+      const currentInCart = cart.filter((c) => c.menuItemId === item.id).length;
+      if (currentInCart >= item.stock) {
+        showAlert(
+          `【${item.name}】目前庫存僅剩 ${item.stock} 份，購物車數量已達庫存上限，無法再增加了！`,
+          '庫存已達上限'
+        );
+        return;
+      }
+    }
+
     const newCartItem: CartItem = {
       id: `${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       menuItemId: item.id,
@@ -292,6 +316,12 @@ export default function App() {
 
     if (cart.length === 0) return;
 
+    // Double check forbidden staff names
+    const forbidden = checkIsForbiddenStaffName(customerTitle);
+    if (forbidden.isForbidden) {
+      showAlert('你連自己名字都忘了？\n\n禁止使用店員名稱進行點餐，請輸入您真實的遊戲 ID！', '⚠️ 警告');
+      return;
+    }
 
     const total = cart.reduce((sum, item) => sum + item.price, 0);
     if (total < 25000) {
@@ -301,6 +331,24 @@ export default function App() {
       );
       return;
     }
+
+    // Verify stock limits before placing order
+    for (const item of menuItems) {
+      const isSoldOut = Boolean(item.isSoldOut) || (item.stock !== undefined && item.stock !== null && item.stock <= 0);
+      const countInCart = cart.filter((c) => c.menuItemId === item.id).length;
+      if (countInCart > 0 && isSoldOut) {
+        showAlert(`【${item.name}】已售罄賣完，無法完成下單！請先自購物車移除。`, '餐點已售完');
+        return;
+      }
+      if (countInCart > 0 && item.stock !== undefined && item.stock !== null && countInCart > item.stock) {
+        showAlert(
+          `【${item.name}】目前庫存僅剩 ${item.stock} 份，但購物車內有 ${countInCart} 份，請調整數量後再下單！`,
+          '庫存不足'
+        );
+        return;
+      }
+    }
+
     const shortId = customerTitle;
 
     const newOrderData = {
@@ -318,6 +366,21 @@ export default function App() {
       id: createdId,
       ...newOrderData,
     };
+
+    // Deduct stock for ordered items
+    setMenuItems((prev) => {
+      const updated = prev.map((item) => {
+        const countOrdered = cart.filter((c) => c.menuItemId === item.id).length;
+        if (countOrdered > 0 && item.stock !== undefined && item.stock !== null) {
+          const newStock = Math.max(0, item.stock - countOrdered);
+          const isSoldOut = newStock === 0 ? true : Boolean(item.isSoldOut);
+          return { ...item, stock: newStock, isSoldOut };
+        }
+        return item;
+      });
+      localStorage.setItem('longmai_menu', JSON.stringify(updated));
+      return updated;
+    });
 
     setOrders((prev) => deduplicateOrders([newOrder, ...prev]));
     const cartItemsCopy = [...cart];
@@ -412,14 +475,76 @@ export default function App() {
     price: number;
     category: CategoryType;
     description: string;
+    stock?: number | null;
   }) => {
+    const stockVal = newItem.stock !== undefined ? newItem.stock : 20;
     const item: MenuItem = {
       id: `custom_${Date.now()}`,
-      ...newItem,
+      name: newItem.name,
+      price: newItem.price,
+      category: newItem.category,
+      description: newItem.description,
+      stock: stockVal,
+      isSoldOut: stockVal !== null && stockVal <= 0,
     };
-    setMenuItems((prev) => [...prev, item]);
+    const updated = [...menuItems, item];
+    setMenuItems(updated);
+    localStorage.setItem('longmai_menu', JSON.stringify(updated));
     setIsAddItemModalOpen(false);
     showAlert(`已成功新增【${newItem.name}】至 ${newItem.category}！`, '新增品項');
+  };
+
+  // Delete single order
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      await deleteSingleOrderInFirebase(orderId);
+      setOrders((prev) => {
+        const updated = prev.filter((o) => o.id !== orderId);
+        localStorage.setItem('longmai_orders', JSON.stringify(updated));
+        return updated;
+      });
+      showAlert('該筆訂單已成功自系統與資料庫中刪除！', '刪除成功');
+    } catch (err) {
+      console.error('刪除訂單失敗:', err);
+      showAlert('刪除訂單時發生錯誤，請稍後再試。', '錯誤');
+    }
+  };
+
+  // Update Item Stock Quantity directly
+  const handleUpdateItemStock = (itemId: string, newStock: number | null) => {
+    setMenuItems((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id === itemId) {
+          const isSoldOut = newStock !== null && newStock <= 0;
+          return { ...item, stock: newStock, isSoldOut };
+        }
+        return item;
+      });
+      localStorage.setItem('longmai_menu', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Toggle Item Sold Out status (賣完就沒有)
+  const handleToggleItemSoldOut = (itemId: string) => {
+    setMenuItems((prev) => {
+      const target = prev.find((i) => i.id === itemId);
+      const willBeSoldOut = !target?.isSoldOut;
+      const updated = prev.map((item) => {
+        if (item.id === itemId) {
+          let newStock = item.stock;
+          if (willBeSoldOut) {
+            newStock = 0;
+          } else {
+            if (newStock === 0 || newStock === undefined) newStock = 20;
+          }
+          return { ...item, isSoldOut: willBeSoldOut, stock: newStock };
+        }
+        return item;
+      });
+      localStorage.setItem('longmai_menu', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   // Reset Data
@@ -459,6 +584,9 @@ export default function App() {
             orders={orders}
             menuItems={menuItems}
             onTakeOrder={handleOpenTakeOrderModal}
+            onDeleteOrder={handleDeleteOrder}
+            onToggleItemSoldOut={handleToggleItemSoldOut}
+            onUpdateItemStock={handleUpdateItemStock}
             onClearData={handleClearData}
             onOpenAddItemModal={() => setIsAddItemModalOpen(true)}
             onReturnToFront={() => setActiveTab('front')}

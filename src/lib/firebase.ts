@@ -202,6 +202,26 @@ export async function updateOrderInFirebase(
   }
 }
 
+export async function deleteSingleOrderInFirebase(orderId: string): Promise<void> {
+  if (rtdb) {
+    try {
+      const orderRef = ref(rtdb, `orders/${orderId}`);
+      await remove(orderRef);
+    } catch (err) {
+      console.warn('Failed to delete RTDB order:', err);
+    }
+  }
+
+  if (firestoreDb) {
+    try {
+      const docRef = doc(firestoreDb, 'orders', orderId);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.warn('Failed to delete Firestore order:', err);
+    }
+  }
+}
+
 export async function clearAllOrdersInFirebase(orders: Order[]): Promise<void> {
   if (rtdb) {
     try {

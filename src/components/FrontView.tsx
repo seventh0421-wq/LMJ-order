@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MenuItem, CartItem, CategoryType, BusinessHoursConfig } from '../types';
-import { Plus, Trash2, ShoppingCart, Utensils, Sparkles, AlertCircle, ShieldAlert, Check } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Utensils, Sparkles, AlertCircle, ShieldAlert, Check, Ban } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { checkIsBusinessOpen } from '../lib/businessHours';
 
@@ -55,6 +55,8 @@ export const FrontView: React.FC<FrontViewProps> = ({
 
   const handleItemClick = (item: MenuItem) => {
     if (!storeStatus.isOpen) return;
+    const isSoldOut = Boolean(item.isSoldOut) || (item.stock !== undefined && item.stock !== null && item.stock <= 0);
+    if (isSoldOut) return;
     setRecentlyAddedId(item.id);
     setTimeout(() => {
       setRecentlyAddedId(null);
@@ -115,15 +117,20 @@ export const FrontView: React.FC<FrontViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {items.map((item) => {
                     const isRecentlyClicked = recentlyAddedId === item.id;
+                    const isSoldOut = Boolean(item.isSoldOut) || (item.stock !== undefined && item.stock !== null && item.stock <= 0);
+                    const isDisabled = !storeStatus.isOpen || isSoldOut;
+
                     return (
                       <motion.button
                         key={item.id}
-                        whileHover={storeStatus.isOpen ? { scale: 1.02 } : {}}
-                        whileTap={storeStatus.isOpen ? { scale: 0.94 } : {}}
+                        whileHover={!isDisabled ? { scale: 1.02 } : {}}
+                        whileTap={!isDisabled ? { scale: 0.94 } : {}}
                         onClick={() => handleItemClick(item)}
-                        disabled={!storeStatus.isOpen}
+                        disabled={isDisabled}
                         className={`retro-btn p-4 text-left font-sans flex justify-between items-center group relative overflow-hidden transition-all ${
-                          !storeStatus.isOpen
+                          isSoldOut
+                            ? 'opacity-70 bg-stone-700/90 border-stone-900 cursor-not-allowed text-stone-300 ring-0 shadow-none'
+                            : !storeStatus.isOpen
                             ? 'opacity-60 grayscale cursor-not-allowed border-gray-500 bg-gray-700'
                             : isRecentlyClicked
                             ? 'ring-4 ring-yellow-400 bg-amber-600 shadow-xl'
@@ -131,8 +138,13 @@ export const FrontView: React.FC<FrontViewProps> = ({
                         }`}
                       >
                         <div className="pr-2">
-                          <div className="font-extrabold text-lg text-white group-hover:text-yellow-200 transition-colors flex items-center gap-1.5">
-                            {item.name}
+                          <div className="font-extrabold text-lg text-white group-hover:text-yellow-200 transition-colors flex items-center gap-1.5 flex-wrap">
+                            <span>{item.name}</span>
+                            {isSoldOut && (
+                              <span className="text-xs bg-rose-700 text-yellow-200 px-2 py-0.5 rounded-md font-black border border-rose-400 inline-flex items-center gap-1 shadow-xs">
+                                <Ban className="w-3 h-3" /> 已售完
+                              </span>
+                            )}
                           </div>
                           {item.description && (
                             <div className="text-xs text-orange-100 font-medium mt-1 line-clamp-1 opacity-90">
@@ -141,11 +153,21 @@ export const FrontView: React.FC<FrontViewProps> = ({
                           )}
                         </div>
                         <div className="flex flex-col items-end shrink-0">
-                          <span className="bg-yellow-300 text-red-900 px-3 py-1 rounded-full text-sm font-black border-2 border-red-800 shadow-sm whitespace-nowrap group-hover:bg-yellow-200">
-                            {item.price.toLocaleString()} G
-                          </span>
+                          {isSoldOut ? (
+                            <span className="bg-rose-800 text-rose-100 px-2.5 py-1 rounded-full text-xs font-black border-2 border-rose-950 shadow-sm whitespace-nowrap">
+                              售罄
+                            </span>
+                          ) : (
+                            <span className="bg-yellow-300 text-red-900 px-3 py-1 rounded-full text-sm font-black border-2 border-red-800 shadow-sm whitespace-nowrap group-hover:bg-yellow-200">
+                              {item.price.toLocaleString()} G
+                            </span>
+                          )}
                           <span className="text-[10px] text-amber-100 font-bold mt-1 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
-                            {!storeStatus.isOpen ? (
+                            {isSoldOut ? (
+                              <span className="text-rose-300 font-bold flex items-center gap-0.5">
+                                <Ban className="w-3 h-3" /> 賣完就沒有
+                              </span>
+                            ) : !storeStatus.isOpen ? (
                               '非營業時間'
                             ) : isRecentlyClicked ? (
                               <span className="text-yellow-200 font-extrabold flex items-center gap-0.5 animate-bounce">
@@ -214,7 +236,7 @@ export const FrontView: React.FC<FrontViewProps> = ({
                     }
                   : {}
               }
-              transition={{ duration: 0.45 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
               className="inline-block"
             >
               <ShoppingCart className="w-7 h-7 text-orange-600" />
@@ -224,7 +246,7 @@ export const FrontView: React.FC<FrontViewProps> = ({
               <motion.span
                 key={`badge-${cart.length}`}
                 initial={{ scale: 0.5, rotate: -15 }}
-                animate={{ scale: [1.35, 1], rotate: 0 }}
+                animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                 className="bg-yellow-400 text-red-900 text-xs font-black px-2.5 py-0.5 rounded-full border-2 border-red-800 shadow-sm ml-1"
               >
@@ -301,7 +323,7 @@ export const FrontView: React.FC<FrontViewProps> = ({
               <motion.span
                 key={`total-${totalG}`}
                 animate={bounceKey > 0 ? { scale: [1, 1.25, 1] } : {}}
-                transition={{ duration: 0.35, type: 'spring', stiffness: 450 }}
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
                 id="cart-total"
                 className="inline-block"
               >

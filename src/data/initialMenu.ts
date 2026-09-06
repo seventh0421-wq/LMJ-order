@@ -6,48 +6,62 @@ export const INITIAL_MENU: MenuItem[] = [
     name: '惡龍漢堡套餐',
     price: 30000,
     category: '室內套餐',
-    description: '經典雙層惡龍肉排佐特調火龍醬汁與香脆薯條'
+    description: '經典雙層惡龍肉排佐特調火龍醬汁與香脆薯條',
+    stock: 20,
+    isSoldOut: false,
   },
   {
     id: 'm2',
     name: '炸魚我最行套餐',
     price: 30000,
     category: '室內套餐',
-    description: '野生海域現撈鮮炸魚排配上香氣滿滿塔塔醬'
+    description: '野生海域現撈鮮炸魚排配上香氣滿滿塔塔醬',
+    stock: 20,
+    isSoldOut: false,
   },
   {
     id: 'm7',
     name: '戶外享用套餐',
     price: 25000,
     category: '戶外套餐',
-    description: '戶外享用風味餐點包，配料豐富適合露營與戶外饗宴'
+    description: '戶外享用風味餐點包，配料豐富適合露營與戶外饗宴',
+    stock: 20,
+    isSoldOut: false,
   },
   {
     id: 'm3',
     name: '野生香蕉果昔',
     price: 15000,
     category: '室內外點心',
-    description: '濃郁天然香蕉特調現打冰沙'
+    description: '濃郁天然香蕉特調現打冰沙',
+    stock: 30,
+    isSoldOut: false,
   },
   {
     id: 'm4',
     name: '無花果餅乾',
     price: 5000,
     category: '室內外點心',
-    description: '酥脆手工烘焙無花果風味一口餅'
+    description: '酥脆手工烘焙無花果風味一口餅',
+    stock: 30,
+    isSoldOut: false,
   },
   {
     id: 'm5',
     name: '羅蘭莓優酪奶昔',
     price: 15000,
     category: '室內外點心',
-    description: '酸甜羅蘭莓搭配優格清爽提神'
+    description: '酸甜羅蘭莓搭配優格清爽提神',
+    stock: 30,
+    isSoldOut: false,
   },
   {
     id: 'm6',
     name: '小圓餅',
     price: 5000,
     category: '室內外點心',
-    description: '古早味經典香甜小圓煎餅'
+    description: '古早味經典香甜小圓煎餅',
+    stock: 30,
+    isSoldOut: false,
   }
 ];

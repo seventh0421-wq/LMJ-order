@@ -7,6 +7,8 @@ export interface MenuItem {
   category: CategoryType;
   description?: string;
   icon?: string;
+  isSoldOut?: boolean;
+  stock?: number | null; // specific stock quantity (e.g. 10, 5, 0). null or undefined means unlimited
 }
 
 export interface CartItem {

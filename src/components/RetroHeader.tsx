@@ -110,11 +110,6 @@ export const RetroHeader: React.FC<RetroHeaderProps> = ({
           className="relative bg-amber-300 p-2.5 sm:p-3 rounded-2xl border-4 border-red-700 shadow-[4px_4px_0px_#7f1d1d] animate-bounce shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform focus:outline-none"
         >
           <HamburgerIcon className="w-9 h-9 sm:w-11 sm:h-11 text-red-700" />
-          {pendingCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-yellow-300 shadow-xs animate-bounce">
-              {pendingCount}
-            </span>
-          )}
         </button>
         <h1 className="retro-title text-3xl sm:text-4xl md:text-5xl tracking-wider m-0">
           ★ 龍麥呷．自助點餐機 ★

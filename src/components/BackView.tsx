@@ -30,6 +30,14 @@ import {
   Filter,
   TrendingUp,
   FileText,
+  Trash2,
+  Ban,
+  UtensilsCrossed,
+  PackageCheck,
+  PackageX,
+  Boxes,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { sendTestDiscordNotification } from '../lib/webhook';
 import { checkIsBusinessOpen } from '../lib/businessHours';
@@ -54,6 +62,9 @@ interface BackViewProps {
   orders: Order[];
   menuItems: MenuItem[];
   onTakeOrder: (orderId: string, category: CategoryType) => void;
+  onDeleteOrder: (orderId: string) => void;
+  onToggleItemSoldOut: (itemId: string) => void;
+  onUpdateItemStock: (itemId: string, newStock: number | null) => void;
   onClearData: () => void;
   onOpenAddItemModal: () => void;
   onReturnToFront: () => void;
@@ -67,6 +78,9 @@ export const BackView: React.FC<BackViewProps> = ({
   orders,
   menuItems,
   onTakeOrder,
+  onDeleteOrder,
+  onToggleItemSoldOut,
+  onUpdateItemStock,
   onClearData,
   onOpenAddItemModal,
   onReturnToFront,
@@ -77,6 +91,7 @@ export const BackView: React.FC<BackViewProps> = ({
 }) => {
   const [staffCount, setStaffCount] = useState<number>(1);
   const [inputWebhook, setInputWebhook] = useState<string>(discordWebhookUrl);
+  const [menuFilterCat, setMenuFilterCat] = useState<string>('全部');
 
   // Daily statistics and history search state
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayStr());
@@ -162,6 +177,17 @@ export const BackView: React.FC<BackViewProps> = ({
   const itemCategoryMap: Record<string, CategoryType> = {};
   menuItems.forEach((item) => {
     itemCategoryMap[item.name] = item.category;
+  });
+
+  const handleDeleteOrderConfirm = (orderId: string, shortId: string) => {
+    if (window.confirm(`確定要刪除訂單【#${shortId}】嗎？\n此動作將同時從系統與資料庫中永久刪除。`)) {
+      onDeleteOrder(orderId);
+    }
+  };
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (menuFilterCat === '全部') return true;
+    return item.category === menuFilterCat;
   });
 
   // Calculate statistics from completed or partially completed orders
@@ -632,6 +658,232 @@ export const BackView: React.FC<BackViewProps> = ({
         )}
       </div>
 
+      {/* 菜單餐點售賣與庫存狀態管理 (賣完就沒有開關) */}
+      <div className="retro-border p-5 sm:p-6 bg-white rounded-xl shadow-lg border-4 border-amber-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-4 border-red-700 pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed className="w-8 h-8 text-orange-600 shrink-0" />
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-red-700 font-dela">
+                餐點售賣與庫存管理
+              </h2>
+              <p className="text-xs sm:text-sm font-bold text-gray-600">
+                可在此設定各餐點的售賣狀態，設定為「已售完」後客人前台將無法點購 (賣完就沒有)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full border border-emerald-300">
+              供應中：{menuItems.filter((i) => !i.isSoldOut).length} 項
+            </span>
+            <span className="bg-rose-100 text-rose-800 text-xs font-black px-3 py-1 rounded-full border border-rose-300">
+              已售完：{menuItems.filter((i) => i.isSoldOut).length} 項
+            </span>
+          </div>
+        </div>
+
+        {/* 分類篩選頁籤 */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs font-black text-gray-500 mr-1 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" /> 篩選分類：
+          </span>
+          {['全部', '室內套餐', '戶外套餐', '室內外點心'].map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setMenuFilterCat(cat)}
+              className={`retro-btn px-3 py-1 text-xs sm:text-sm font-black transition-all ${
+                menuFilterCat === cat
+                  ? 'bg-red-700 text-white border-red-950'
+                  : 'bg-amber-100 text-gray-800 border-amber-400 hover:bg-amber-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 餐點清單卡片網格 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredMenuItems.map((item) => {
+            const hasTrackedStock = item.stock !== undefined && item.stock !== null;
+            const isSoldOut = Boolean(item.isSoldOut) || (hasTrackedStock && item.stock! <= 0);
+            return (
+              <div
+                key={item.id}
+                className={`p-3.5 rounded-xl border-2 transition-all flex flex-col justify-between ${
+                  isSoldOut
+                    ? 'bg-stone-100 border-stone-400 text-stone-700 shadow-inner'
+                    : 'bg-amber-50/70 border-amber-300 hover:border-amber-500 shadow-sm'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="font-extrabold text-base text-gray-900 font-dela">
+                      {item.name}
+                    </span>
+                    <span
+                      className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 border ${
+                        item.category === '室內套餐'
+                          ? 'bg-red-100 text-red-800 border-red-300'
+                          : item.category === '戶外套餐'
+                          ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      {item.category}
+                    </span>
+                  </div>
+                  <div className="text-orange-600 font-black text-sm mb-1.5 font-dela">
+                    ${item.price.toLocaleString()} G
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-gray-500 line-clamp-1 mb-2">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* 庫存數量輸入與微調區 */}
+                <div className="bg-amber-100/80 p-2.5 rounded-lg border border-amber-300 my-2">
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1">
+                      <Boxes className="w-3.5 h-3.5 text-amber-700" />
+                      <span>庫存數量：</span>
+                    </label>
+                    <div>
+                      {!hasTrackedStock ? (
+                        <span className="text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full text-[11px] font-black border border-blue-300">
+                          不限庫存
+                        </span>
+                      ) : isSoldOut ? (
+                        <span className="text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full text-[11px] font-black border border-rose-300">
+                          0 份 (已售完)
+                        </span>
+                      ) : (
+                        <span className="text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full text-[11px] font-black border border-emerald-300">
+                          剩餘 {item.stock} 份
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {/* -1 按鈕 */}
+                    <button
+                      type="button"
+                      title="減少 1 份"
+                      onClick={() => {
+                        const current = item.stock ?? 20;
+                        onUpdateItemStock(item.id, Math.max(0, current - 1));
+                      }}
+                      className="retro-btn px-2 py-1 text-xs font-black bg-stone-200 hover:bg-stone-300 border-stone-400 text-stone-800 shrink-0"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* 店員輸入數量 input */}
+                    <div className="relative flex-1 min-w-[60px]">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={item.stock === null || item.stock === undefined ? '' : item.stock}
+                        onChange={(e) => {
+                          const val = e.target.value.trim();
+                          if (val === '') {
+                            onUpdateItemStock(item.id, null);
+                          } else {
+                            const num = parseInt(val, 10);
+                            onUpdateItemStock(item.id, isNaN(num) ? 0 : Math.max(0, num));
+                          }
+                        }}
+                        placeholder="不限"
+                        title="店員可直接在此輸入庫存數量，0 代表售完"
+                        className="w-full text-center font-black text-sm bg-white border-2 border-amber-600 rounded-md py-1 px-1 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-inner"
+                      />
+                    </div>
+
+                    {/* +1 按鈕 */}
+                    <button
+                      type="button"
+                      title="增加 1 份"
+                      onClick={() => {
+                        const current = item.stock ?? 0;
+                        onUpdateItemStock(item.id, current + 1);
+                      }}
+                      className="retro-btn px-2 py-1 text-xs font-black bg-stone-200 hover:bg-stone-300 border-stone-400 text-stone-800 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* +10 按鈕 */}
+                    <button
+                      type="button"
+                      title="快速補貨 +10"
+                      onClick={() => {
+                        const current = item.stock ?? 0;
+                        onUpdateItemStock(item.id, current + 10);
+                      }}
+                      className="retro-btn px-2 py-1 text-xs font-black bg-amber-200 hover:bg-amber-300 border-amber-500 text-amber-950 shrink-0"
+                    >
+                      +10
+                    </button>
+
+                    {/* 設為不限 */}
+                    <button
+                      type="button"
+                      title="設為無限量供應"
+                      onClick={() => onUpdateItemStock(item.id, item.stock === null ? 20 : null)}
+                      className={`retro-btn px-2 py-1 text-[11px] font-black border shrink-0 ${
+                        item.stock === null || item.stock === undefined
+                          ? 'bg-blue-600 text-white border-blue-900'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-300'
+                      }`}
+                    >
+                      {item.stock === null || item.stock === undefined ? '不限' : '設不限'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-dashed border-gray-300 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    {isSoldOut ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                        <Ban className="w-3.5 h-3.5" /> 已售完 (無庫存)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                        <CheckCircle className="w-3.5 h-3.5" /> 正常售賣中
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleItemSoldOut(item.id)}
+                    className={`retro-btn px-3 py-1.5 text-xs font-black flex items-center gap-1 shadow-xs transition-transform active:scale-95 ${
+                      isSoldOut
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-900'
+                        : 'bg-rose-700 hover:bg-rose-800 text-white border-rose-950'
+                    }`}
+                  >
+                    {isSoldOut ? (
+                      <>
+                        <PackageCheck className="w-3.5 h-3.5" /> 恢復售賣
+                      </>
+                    ) : (
+                      <>
+                        <PackageX className="w-3.5 h-3.5" /> 設為賣完
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 訂單管理 (新進訂單區) */}
       <div className="retro-border p-5 sm:p-6 bg-white">
         <div className="flex justify-between items-center mb-6 border-b-4 border-red-700 pb-3">
@@ -683,12 +935,22 @@ export const BackView: React.FC<BackViewProps> = ({
                         ))}
                       </ul>
                     </div>
-                    <button
-                      onClick={() => onTakeOrder(p.orderKey, '室內套餐')}
-                      className="retro-btn w-full py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
-                    >
-                      <CheckCircle className="w-4 h-4" /> 確認並接單
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onTakeOrder(p.orderKey, '室內套餐')}
+                        className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
+                      >
+                        <CheckCircle className="w-4 h-4" /> 確認並接單
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrderConfirm(p.orderKey, p.orderId)}
+                        title="刪除此筆訂單"
+                        className="retro-btn px-2.5 py-2 text-sm bg-rose-700 hover:bg-rose-800 text-white border-rose-950 flex items-center justify-center shrink-0 shadow-xs"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -732,12 +994,22 @@ export const BackView: React.FC<BackViewProps> = ({
                         ))}
                       </ul>
                     </div>
-                    <button
-                      onClick={() => onTakeOrder(p.orderKey, '戶外套餐')}
-                      className="retro-btn w-full py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
-                    >
-                      <CheckCircle className="w-4 h-4" /> 確認並接單
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onTakeOrder(p.orderKey, '戶外套餐')}
+                        className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
+                      >
+                        <CheckCircle className="w-4 h-4" /> 確認並接單
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrderConfirm(p.orderKey, p.orderId)}
+                        title="刪除此筆訂單"
+                        className="retro-btn px-2.5 py-2 text-sm bg-rose-700 hover:bg-rose-800 text-white border-rose-950 flex items-center justify-center shrink-0 shadow-xs"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -781,12 +1053,22 @@ export const BackView: React.FC<BackViewProps> = ({
                         ))}
                       </ul>
                     </div>
-                    <button
-                      onClick={() => onTakeOrder(p.orderKey, '室內外點心')}
-                      className="retro-btn w-full py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
-                    >
-                      <CheckCircle className="w-4 h-4" /> 確認並接單
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onTakeOrder(p.orderKey, '室內外點心')}
+                        className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
+                      >
+                        <CheckCircle className="w-4 h-4" /> 確認並接單
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrderConfirm(p.orderKey, p.orderId)}
+                        title="刪除此筆訂單"
+                        className="retro-btn px-2.5 py-2 text-sm bg-rose-700 hover:bg-rose-800 text-white border-rose-950 flex items-center justify-center shrink-0 shadow-xs"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1083,6 +1365,7 @@ export const BackView: React.FC<BackViewProps> = ({
                     <th className="p-3">餐點明細</th>
                     <th className="p-3 text-right">總金額</th>
                     <th className="p-3">接單處理人員</th>
+                    <th className="p-3 text-center whitespace-nowrap">管理操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm font-bold text-gray-800">
@@ -1138,6 +1421,17 @@ export const BackView: React.FC<BackViewProps> = ({
                           <span className="text-xs bg-red-50 text-red-700 font-bold px-2 py-1 rounded border border-red-200 inline-block">
                             {ord.handler || '未具名接單人'}
                           </span>
+                        </td>
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOrderConfirm(ord.id, ord.shortId)}
+                            className="retro-btn px-2.5 py-1 text-xs bg-rose-700 hover:bg-rose-800 text-white border-rose-950 inline-flex items-center gap-1 shadow-xs"
+                            title="刪除此筆訂單紀錄"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>刪除訂單</span>
+                          </button>
                         </td>
                       </tr>
                     );
