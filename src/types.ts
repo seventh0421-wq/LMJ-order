@@ -35,8 +35,9 @@ export interface StaffStat {
 }
 
 export interface BusinessHoursConfig {
-  mode: 'auto' | 'force_open' | 'force_closed';
-  openTime: string; // e.g. "10:00"
-  closeTime: string; // e.g. "22:00"
+  isOpen: boolean;
+  mode?: 'open' | 'closed' | 'auto' | 'force_open' | 'force_closed';
+  openTime?: string;
+  closeTime?: string;
   closedNotice?: string;
 }

@@ -20,9 +20,11 @@ import {
   StaffModal,
   AddItemModal,
 } from './components/Modals';
+import { CelebrationModal, CelebrationOrderData } from './components/CelebrationModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'front' | 'back'>('front');
+  const [celebrationOrder, setCelebrationOrder] = useState<CelebrationOrderData | null>(null);
 
   const DEFAULT_DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1536593869272256543/Oos0-Url4hj9nKV9OMmA_Y7qCtIfhS9yq20qcULQZuWkSMmGIQirEj2PtD4HdR49MLk9';
 
@@ -225,7 +227,7 @@ export default function App() {
   const handleAddToCart = (item: MenuItem) => {
     const status = checkIsBusinessOpen(businessHoursConfig);
     if (!status.isOpen) {
-      showAlert(status.reason || '目前非營業時間，無法將餐點加入購物車！', '非營業時間');
+      showAlert(status.reason || '目前店內打烊休息中，無法將餐點加入購物車！', '店內打烊中');
       return;
     }
 
@@ -251,7 +253,7 @@ export default function App() {
   const handleSubmitOrder = () => {
     const status = checkIsBusinessOpen(businessHoursConfig);
     if (!status.isOpen) {
-      showAlert(status.reason || '目前非營業時間，暫不開放點餐！', '非營業時間');
+      showAlert(status.reason || '目前店內打烊休息中，暫不開放點餐！', '店內打烊中');
       return;
     }
 
@@ -336,10 +338,14 @@ export default function App() {
       }).catch((err) => console.error('Discord Webhook notification error:', err));
     }
 
-    showAlert(
-      `餐點已成功送出！\n\n您的遊戲 ID：【 ${shortId} 】\n訂單總金額：【 $${total.toLocaleString()} G 】\n請憑此遊戲 ID 至現場核對付款與領取餐點。`,
-      '✅ 點餐成功'
-    );
+    // Trigger full-screen celebration animation
+    setCelebrationOrder({
+      shortId,
+      total,
+      items: cartItemsCopy,
+      orderId: createdId,
+      timestamp: newOrderData.timestamp,
+    });
   };
 
   // Backend order completion with staff modal
@@ -507,6 +513,13 @@ export default function App() {
         isOpen={isAddItemModalOpen}
         onSubmit={handleAddItem}
         onCancel={() => setIsAddItemModalOpen(false)}
+      />
+
+      {/* 全螢幕感謝慶祝動畫 */}
+      <CelebrationModal
+        isOpen={!!celebrationOrder}
+        orderData={celebrationOrder}
+        onClose={() => setCelebrationOrder(null)}
       />
     </div>
   );

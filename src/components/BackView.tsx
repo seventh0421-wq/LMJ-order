@@ -90,30 +90,45 @@ export const BackView: React.FC<BackViewProps> = ({
   const [testStatus, setTestStatus] = useState<{ loading: boolean; msg: string; success?: boolean } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
-  // Business Hours Form State
-  const [hoursMode, setHoursMode] = useState<'auto' | 'force_open' | 'force_closed'>(businessHoursConfig.mode);
-  const [openTime, setOpenTime] = useState<string>(businessHoursConfig.openTime || '10:00');
-  const [closeTime, setCloseTime] = useState<string>(businessHoursConfig.closeTime || '22:00');
+  // Business Hours State (Manual Open / Close Only)
+  const isBusinessOpen =
+    typeof businessHoursConfig.isOpen === 'boolean'
+      ? businessHoursConfig.isOpen
+    : businessHoursConfig.mode !== 'force_closed' && businessHoursConfig.mode !== 'closed';
+
+  const [isOpenState, setIsOpenState] = useState<boolean>(isBusinessOpen);
   const [closedNotice, setClosedNotice] = useState<string>(
-    businessHoursConfig.closedNotice || '目前非營業時間，自助點餐機暫停開放。'
+    businessHoursConfig.closedNotice || '目前店內打烊休息中，自助點餐機暫停開放。'
   );
   const [isHoursSaved, setIsHoursSaved] = useState<boolean>(false);
 
   useEffect(() => {
-    setHoursMode(businessHoursConfig.mode);
-    setOpenTime(businessHoursConfig.openTime || '10:00');
-    setCloseTime(businessHoursConfig.closeTime || '22:00');
-    setClosedNotice(businessHoursConfig.closedNotice || '目前非營業時間，自助點餐機暫停開放。');
+    const currentOpen =
+      typeof businessHoursConfig.isOpen === 'boolean'
+        ? businessHoursConfig.isOpen
+        : businessHoursConfig.mode !== 'force_closed' && businessHoursConfig.mode !== 'closed';
+    setIsOpenState(currentOpen);
+    setClosedNotice(businessHoursConfig.closedNotice || '目前店內打烊休息中，自助點餐機暫停開放。');
   }, [businessHoursConfig]);
 
   const currentStoreStatus = checkIsBusinessOpen(businessHoursConfig);
 
-  const handleSaveHours = (e?: React.FormEvent) => {
+  const handleToggleBusiness = (newOpen: boolean) => {
+    setIsOpenState(newOpen);
+    onUpdateBusinessHoursConfig({
+      isOpen: newOpen,
+      mode: newOpen ? 'open' : 'closed',
+      closedNotice,
+    });
+    setIsHoursSaved(true);
+    setTimeout(() => setIsHoursSaved(false), 2000);
+  };
+
+  const handleSaveNotice = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     onUpdateBusinessHoursConfig({
-      mode: hoursMode,
-      openTime,
-      closeTime,
+      isOpen: isOpenState,
+      mode: isOpenState ? 'open' : 'closed',
       closedNotice,
     });
     setIsHoursSaved(true);
@@ -331,129 +346,123 @@ export const BackView: React.FC<BackViewProps> = ({
         </div>
       </div>
 
-      {/* 營業時間與門市開關設定卡片 */}
+      {/* 營業狀態手動控制卡片 */}
       <div className="retro-border p-5 bg-amber-100/90 text-gray-900 rounded-xl shadow-lg border-4 border-amber-800">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b-2 border-amber-800/40">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-red-700 text-amber-300 rounded-lg shadow-md">
-              <Clock className="w-6 h-6" />
+              <Store className="w-6 h-6" />
             </div>
             <div>
               <h3 className="text-xl font-black font-dela tracking-wide text-red-800 flex items-center gap-2">
-                營業時間與點餐機開關設定
+                門市營業狀態控制
                 <span
                   className={`text-xs px-2.5 py-1 rounded-full font-bold border-2 shadow-sm ${
-                    currentStoreStatus.isOpen
+                    isOpenState
                       ? 'bg-emerald-600 text-white border-emerald-800'
                       : 'bg-rose-700 text-white border-rose-900'
                   }`}
                 >
-                  {currentStoreStatus.statusText}
+                  {isOpenState ? '🟢 營業中 (開放點餐)' : '🔴 打烊中 (暫停點餐)'}
                 </span>
               </h3>
               <p className="text-xs text-amber-900 font-bold mt-0.5">
-                控制前台自助點餐機是否開放顧客點餐或自動依營業時間切換
+                手動切換點餐機的營業狀態，即時控制顧客是否可於前台加入購物車與送出訂單
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleSaveHours}
+            onClick={handleSaveNotice}
             className="retro-btn px-4 py-2 text-sm bg-red-700 hover:bg-red-600 text-white font-black border-red-950 flex items-center gap-1.5"
           >
             {isHoursSaved ? <Check className="w-4 h-4 text-emerald-300" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
-            {isHoursSaved ? '營業設定已儲存！' : '儲存營業設定'}
+            {isHoursSaved ? '設定已儲存！' : '儲存告示設定'}
           </button>
         </div>
 
-        <form onSubmit={handleSaveHours} className="space-y-4">
-          {/* 模式選擇 (Mode Buttons) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-4">
+          {/* 手動開啟 / 關閉 營業雙按鈕 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => setHoursMode('auto')}
-              className={`p-3 rounded-xl border-4 font-black flex items-center justify-center gap-2 transition-all text-sm ${
-                hoursMode === 'auto'
-                  ? 'bg-amber-500 border-red-800 text-red-950 shadow-md ring-2 ring-red-600/50'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-amber-50'
+              onClick={() => handleToggleBusiness(true)}
+              className={`p-4 rounded-xl border-4 font-black flex flex-col sm:flex-row items-center gap-3 transition-all text-left ${
+                isOpenState
+                  ? 'bg-emerald-600 border-emerald-950 text-white shadow-xl ring-4 ring-emerald-400 scale-[1.01]'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
               }`}
             >
-              <Clock className="w-5 h-5 text-amber-700" />
-              ⏰ 自動依營業時間切換
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHoursMode('force_open')}
-              className={`p-3 rounded-xl border-4 font-black flex items-center justify-center gap-2 transition-all text-sm ${
-                hoursMode === 'force_open'
-                  ? 'bg-emerald-500 border-emerald-900 text-white shadow-md ring-2 ring-emerald-600/50'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-emerald-50'
-              }`}
-            >
-              <Power className="w-5 h-5 text-emerald-700" />
-              🟢 手動強制營業 (全天開放)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHoursMode('force_closed')}
-              className={`p-3 rounded-xl border-4 font-black flex items-center justify-center gap-2 transition-all text-sm ${
-                hoursMode === 'force_closed'
-                  ? 'bg-rose-700 border-rose-950 text-white shadow-md ring-2 ring-rose-600/50'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-rose-50'
-              }`}
-            >
-              <ShieldAlert className="w-5 h-5 text-rose-700" />
-              🔴 手動強制休息 (關閉點餐)
-            </button>
-          </div>
-
-          {/* 自動時間模式下出現的時間設定 */}
-          {hoursMode === 'auto' && (
-            <div className="p-4 bg-white/80 rounded-xl border-2 border-amber-300 space-y-3">
-              <div className="flex flex-wrap items-center gap-4 text-sm font-bold text-gray-800">
-                <div className="flex items-center gap-2">
-                  <span>每日開門時間：</span>
-                  <input
-                    type="time"
-                    value={openTime}
-                    onChange={(e) => setOpenTime(e.target.value)}
-                    className="border-2 border-red-700 rounded-lg p-2 font-mono text-base font-extrabold bg-amber-50 focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
-
-                <span className="font-extrabold text-red-700 text-lg">至</span>
-
-                <div className="flex items-center gap-2">
-                  <span>每日打烊時間：</span>
-                  <input
-                    type="time"
-                    value={closeTime}
-                    onChange={(e) => setCloseTime(e.target.value)}
-                    className="border-2 border-red-700 rounded-lg p-2 font-mono text-base font-extrabold bg-amber-50 focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
+              <div className={`p-3 rounded-lg ${isOpenState ? 'bg-emerald-800 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                <Power className="w-7 h-7" />
               </div>
-              <p className="text-xs text-amber-900 font-semibold">
-                💡 系統會自動比對顧客點餐時的目前時間。若點餐時間不在此區間內，點餐按鈕將自動鎖定並顯示告示。
-              </p>
-            </div>
-          )}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-lg font-black font-dela">
+                  <span>🟢 手動開啟營業</span>
+                  {isOpenState && (
+                    <span className="text-xs bg-emerald-800 text-emerald-100 px-2 py-0.5 rounded-full border border-emerald-400">
+                      目前運作中
+                    </span>
+                  )}
+                </div>
+                <p className={`text-xs mt-1 font-bold ${isOpenState ? 'text-emerald-100' : 'text-gray-500'}`}>
+                  前台開放點餐，顧客可自由加入購物車並結帳送出訂單
+                </p>
+              </div>
+            </button>
 
-          {/* 休息告示文案 */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-700">非營業時間告示文字 (展示於前台顧客視角)：</label>
-            <input
-              type="text"
-              value={closedNotice}
-              onChange={(e) => setClosedNotice(e.target.value)}
-              placeholder="請輸入非營業時間對顧客顯示的提示文字..."
-              className="w-full bg-white border-2 border-amber-400 rounded-lg px-3 py-2 text-sm font-bold text-gray-800 focus:outline-none focus:border-red-600"
-            />
+            <button
+              type="button"
+              onClick={() => handleToggleBusiness(false)}
+              className={`p-4 rounded-xl border-4 font-black flex flex-col sm:flex-row items-center gap-3 transition-all text-left ${
+                !isOpenState
+                  ? 'bg-rose-700 border-rose-950 text-white shadow-xl ring-4 ring-rose-400 scale-[1.01]'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-rose-50 hover:border-rose-300'
+              }`}
+            >
+              <div className={`p-3 rounded-lg ${!isOpenState ? 'bg-rose-900 text-white' : 'bg-rose-100 text-rose-700'}`}>
+                <ShieldAlert className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-lg font-black font-dela">
+                  <span>🔴 手動關閉營業</span>
+                  {!isOpenState && (
+                    <span className="text-xs bg-rose-900 text-rose-100 px-2 py-0.5 rounded-full border border-rose-400">
+                      目前打烊中
+                    </span>
+                  )}
+                </div>
+                <p className={`text-xs mt-1 font-bold ${!isOpenState ? 'text-rose-100' : 'text-gray-500'}`}>
+                  前台關閉點餐，鎖定點餐按鈕並向顧客展示打烊休息提示
+                </p>
+              </div>
+            </button>
           </div>
-        </form>
+
+          {/* 打烊休息告示文案 */}
+          <form onSubmit={handleSaveNotice} className="space-y-1 pt-1">
+            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <span>打烊告示文字 (展示於前台顧客視角)：</span>
+              <span className="text-amber-800 text-[11px] font-normal">※ 關閉營業時前台將醒目顯示此文字</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={closedNotice}
+                onChange={(e) => setClosedNotice(e.target.value)}
+                placeholder="請輸入打烊時對顧客顯示的提示文字..."
+                className="flex-1 bg-white border-2 border-amber-400 rounded-lg px-3 py-2 text-sm font-bold text-gray-800 focus:outline-none focus:border-red-600"
+              />
+              <button
+                type="submit"
+                className="retro-btn px-4 py-2 text-sm bg-amber-700 hover:bg-amber-800 text-white font-black border-amber-950 whitespace-nowrap"
+              >
+                儲存文字
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
       {/* Discord Webhook 通知設定與教學卡片 */}

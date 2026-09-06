@@ -85,6 +85,42 @@
     box-shadow: inset 3px 3px 0px #7f1d1d !important;
     transform: translate(2px, 2px);
   }
+
+  .sunburst {
+    background: repeating-conic-gradient(
+      from 0deg,
+      rgba(245, 158, 11, 0.22) 0deg 15deg,
+      rgba(239, 68, 68, 0.18) 15deg 30deg
+    );
+    animation: sunburst-spin 28s linear infinite;
+  }
+
+  .ticket-border {
+    position: relative;
+    border: 3px dashed #b91c1c;
+    background: #fffbeb;
+  }
+}
+
+@keyframes sunburst-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cart-bounce {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.08) translateY(-6px) rotate(-1deg); }
+  50% { transform: scale(0.96) translateY(2px) rotate(1deg); }
+  75% { transform: scale(1.03) translateY(-2px); }
+  100% { transform: scale(1) translateY(0) rotate(0); }
+}
+
+.animate-cart-bounce {
+  animation: cart-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 body {
