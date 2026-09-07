@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import { CategoryType } from '../types';
-import { KeyRound, UserCheck, Plus, ShieldAlert, X, User, Send, AlertTriangle } from 'lucide-react';
+import {
+  KeyRound,
+  UserCheck,
+  Plus,
+  ShieldAlert,
+  X,
+  User,
+  Send,
+  AlertTriangle,
+  UserPlus,
+  Check,
+  Coins,
+} from 'lucide-react';
 import { checkIsForbiddenStaffName } from '../lib/validation';
 
 interface AlertModalProps {
@@ -42,6 +54,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
 interface CustomerModalProps {
   isOpen: boolean;
   totalAmount: number;
+  staffList?: string[];
   onSubmit: (customerName: string) => void;
   onCancel: () => void;
 }
@@ -49,6 +62,7 @@ interface CustomerModalProps {
 export const CustomerModal: React.FC<CustomerModalProps> = ({
   isOpen,
   totalAmount,
+  staffList,
   onSubmit,
   onCancel,
 }) => {
@@ -65,7 +79,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
 
   if (!isOpen) return null;
 
-  const forbiddenResult = checkIsForbiddenStaffName(customerName);
+  const forbiddenResult = checkIsForbiddenStaffName(customerName, staffList || []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,6 +247,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
 interface StaffModalProps {
   isOpen: boolean;
   categoryName?: string;
+  orderShortId?: string;
+  orderTotal?: number;
+  staffList?: string[];
+  onAddStaffName?: (newName: string) => void;
   onSubmit: (staffName: string) => void;
   onCancel: () => void;
 }
@@ -240,18 +258,67 @@ interface StaffModalProps {
 export const StaffModal: React.FC<StaffModalProps> = ({
   isOpen,
   categoryName,
+  orderShortId,
+  orderTotal,
+  staffList = [],
+  onAddStaffName,
   onSubmit,
   onCancel,
 }) => {
-  const [staffName, setStaffName] = useState('');
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newStaffInput, setNewStaffInput] = useState('');
+  const [addError, setAddError] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsAddingNew(false);
+      setNewStaffInput('');
+      setAddError('');
+      const lastStaff = localStorage.getItem('longmai_last_staff');
+      if (lastStaff && staffList.includes(lastStaff)) {
+        setSelectedStaff(lastStaff);
+      } else if (staffList.length > 0) {
+        setSelectedStaff(staffList[0]);
+      } else {
+        setSelectedStaff('');
+      }
+    }
+  }, [isOpen, staffList]);
 
   if (!isOpen) return null;
 
+  const handleAddNewStaff = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newStaffInput.trim();
+    if (!trimmed) {
+      setAddError('請輸入有效姓名');
+      return;
+    }
+    const exists = staffList.some((s) => s.toLowerCase() === trimmed.toLowerCase());
+    if (!exists && onAddStaffName) {
+      onAddStaffName(trimmed);
+    }
+    setSelectedStaff(trimmed);
+    localStorage.setItem('longmai_last_staff', trimmed);
+    setIsAddingNew(false);
+    setNewStaffInput('');
+    setAddError('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!staffName.trim()) return;
-    onSubmit(staffName.trim());
-    setStaffName('');
+    if (isAddingNew) {
+      if (!newStaffInput.trim()) {
+        setAddError('請輸入有效姓名');
+        return;
+      }
+      handleAddNewStaff();
+      return;
+    }
+    if (!selectedStaff.trim() || selectedStaff === '__ADD_NEW__') return;
+    localStorage.setItem('longmai_last_staff', selectedStaff.trim());
+    onSubmit(selectedStaff.trim());
   };
 
   return (
@@ -267,15 +334,112 @@ export const StaffModal: React.FC<StaffModalProps> = ({
           </button>
         </div>
 
+        {/* 訂單摘要資訊卡片 (包含訂單金額) */}
+        {(orderShortId || orderTotal !== undefined) && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 mb-4 flex items-center justify-between shadow-xs">
+            <div>
+              <span className="text-xs font-bold text-gray-500 block">待處理取餐號</span>
+              <span className="font-dela font-black text-base text-red-700">
+                【{orderShortId ? `#${orderShortId}` : '待辦'}】
+              </span>
+            </div>
+            {orderTotal !== undefined && (
+              <div className="text-right">
+                <span className="text-xs font-bold text-gray-500 block">訂單總金額</span>
+                <span className="font-dela font-black text-xl text-orange-600">
+                  ${orderTotal.toLocaleString()} G
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <p className="font-bold text-gray-700 mb-2">請輸入店員姓名 (接單人)：</p>
-          <input
-            type="text"
-            value={staffName}
-            onChange={(e) => setStaffName(e.target.value)}
-            autoFocus
-            className="w-full border-4 border-red-700 p-2.5 text-xl rounded-xl mb-6 text-center font-bold bg-amber-50 focus:outline-none focus:ring-2 focus:ring-red-500"
-          />
+          <div className="mb-5">
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="font-black text-gray-800 text-sm flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-red-700" />
+                請選擇接單店員：
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingNew(!isAddingNew);
+                  setAddError('');
+                }}
+                className="text-xs text-red-700 hover:text-red-900 font-extrabold flex items-center gap-0.5 transition-colors underline"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                {isAddingNew ? '選擇現有名單' : '➕ 新增名字'}
+              </button>
+            </div>
+
+            {!isAddingNew ? (
+              <div className="space-y-2">
+                <select
+                  value={selectedStaff}
+                  onChange={(e) => {
+                    if (e.target.value === '__ADD_NEW__') {
+                      setIsAddingNew(true);
+                      setNewStaffInput('');
+                      setAddError('');
+                    } else {
+                      setSelectedStaff(e.target.value);
+                      localStorage.setItem('longmai_last_staff', e.target.value);
+                    }
+                  }}
+                  className="w-full border-4 border-red-700 p-2.5 text-lg rounded-xl font-black bg-amber-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-inner cursor-pointer"
+                >
+                  <option value="">-- 請選擇店員姓名 --</option>
+                  {staffList.map((name) => (
+                    <option key={name} value={name}>
+                      👤 {name}
+                    </option>
+                  ))}
+                  <option value="__ADD_NEW__">➕ 【新增其他店員名字...】</option>
+                </select>
+                {selectedStaff && selectedStaff !== '__ADD_NEW__' && (
+                  <div className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-300 flex items-center gap-1.5">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>接單人員：</span>
+                    <span className="text-sm underline text-emerald-900 font-black">
+                      {selectedStaff}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-amber-100/90 p-3 rounded-xl border-2 border-dashed border-red-400 space-y-2 animate-in fade-in">
+                <label className="text-xs font-black text-red-900 block flex items-center gap-1">
+                  <UserPlus className="w-3.5 h-3.5 text-red-700" />
+                  輸入新店員姓名：
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newStaffInput}
+                    onChange={(e) => {
+                      setNewStaffInput(e.target.value);
+                      setAddError('');
+                    }}
+                    placeholder="例如：小明、阿龍"
+                    autoFocus
+                    className="flex-1 border-2 border-red-700 p-2 text-base rounded-lg font-bold bg-white focus:outline-none focus:ring-2 focus:ring-red-500 shadow-inner"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddNewStaff}
+                    disabled={!newStaffInput.trim()}
+                    className="retro-btn px-3 py-1.5 text-xs retro-btn-green shrink-0 font-black disabled:opacity-50"
+                  >
+                    新增並選取
+                  </button>
+                </div>
+                {addError && <p className="text-xs text-red-600 font-bold">{addError}</p>}
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-between gap-4">
             <button
               type="button"
@@ -286,12 +450,14 @@ export const StaffModal: React.FC<StaffModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!staffName.trim()}
+              disabled={!selectedStaff.trim() || selectedStaff === '__ADD_NEW__'}
               className={`retro-btn px-4 py-2 text-lg flex-1 ${
-                !staffName.trim() ? 'opacity-50 cursor-not-allowed' : 'retro-btn-green'
+                !selectedStaff.trim() || selectedStaff === '__ADD_NEW__'
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'retro-btn-green'
               }`}
             >
-              完成訂單
+              完成接單
             </button>
           </div>
         </form>

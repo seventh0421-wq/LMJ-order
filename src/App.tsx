@@ -24,9 +24,51 @@ import {
 } from './components/Modals';
 import { CelebrationModal, CelebrationOrderData } from './components/CelebrationModal';
 
+const DEFAULT_STAFF_LIST = [
+  '店長',
+  '阿龍',
+  '小明',
+  '阿華',
+  '小美',
+  '主廚',
+  '副廚',
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'front' | 'back'>('front');
   const [celebrationOrder, setCelebrationOrder] = useState<CelebrationOrderData | null>(null);
+
+  const [staffList, setStaffList] = useState<string[]>(() => {
+    const saved = localStorage.getItem('longmai_staff_list');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return DEFAULT_STAFF_LIST;
+  });
+
+  const handleAddStaffName = (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setStaffList((prev) => {
+      if (prev.some((n) => n.toLowerCase() === trimmed.toLowerCase())) return prev;
+      const next = [...prev, trimmed];
+      localStorage.setItem('longmai_staff_list', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleRemoveStaffName = (nameToRemove: string) => {
+    setStaffList((prev) => {
+      const next = prev.filter((n) => n !== nameToRemove);
+      localStorage.setItem('longmai_staff_list', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const DEFAULT_DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1536593869272256543/Oos0-Url4hj9nKV9OMmA_Y7qCtIfhS9yq20qcULQZuWkSMmGIQirEj2PtD4HdR49MLk9';
 
@@ -160,6 +202,40 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('longmai_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  // Automatically merge any staff names recorded in orders into staffList
+  useEffect(() => {
+    if (orders.length > 0) {
+      const existingStaff = new Set<string>();
+      orders.forEach((o) => {
+        if (o.handler && o.handler !== '未具名接單人') existingStaff.add(o.handler);
+        if (o.completedCategories) {
+          Object.values(o.completedCategories).forEach((h) => {
+            if (typeof h === 'string' && h && h !== '未具名接單人') {
+              existingStaff.add(h);
+            }
+          });
+        }
+      });
+      if (existingStaff.size > 0) {
+        setStaffList((prev) => {
+          let updated = false;
+          const next = [...prev];
+          existingStaff.forEach((s) => {
+            if (s && !next.some((n) => n.toLowerCase() === s.toLowerCase())) {
+              next.push(s);
+              updated = true;
+            }
+          });
+          if (updated) {
+            localStorage.setItem('longmai_staff_list', JSON.stringify(next));
+            return next;
+          }
+          return prev;
+        });
+      }
+    }
   }, [orders]);
 
   useEffect(() => {
@@ -420,6 +496,8 @@ export default function App() {
   const handleStaffSubmit = async (staffName: string) => {
     if (!activeHandlingOrder) return;
 
+    handleAddStaffName(staffName);
+
     const { orderId: targetOrderId, category: targetCategory } = activeHandlingOrder;
     setIsStaffModalOpen(false);
     setActiveHandlingOrder(null);
@@ -583,6 +661,9 @@ export default function App() {
           <BackView
             orders={orders}
             menuItems={menuItems}
+            staffList={staffList}
+            onAddStaffName={handleAddStaffName}
+            onRemoveStaffName={handleRemoveStaffName}
             onTakeOrder={handleOpenTakeOrderModal}
             onDeleteOrder={handleDeleteOrder}
             onToggleItemSoldOut={handleToggleItemSoldOut}
@@ -614,6 +695,7 @@ export default function App() {
       <CustomerModal
         isOpen={isCustomerModalOpen}
         totalAmount={cart.reduce((sum, item) => sum + item.price, 0)}
+        staffList={staffList}
         onSubmit={handleCustomerNameConfirm}
         onCancel={() => setIsCustomerModalOpen(false)}
       />
@@ -627,15 +709,27 @@ export default function App() {
         }}
       />
 
-      <StaffModal
-        isOpen={isStaffModalOpen}
-        categoryName={activeHandlingOrder?.category}
-        onSubmit={handleStaffSubmit}
-        onCancel={() => {
-          setIsStaffModalOpen(false);
-          setActiveHandlingOrder(null);
-        }}
-      />
+      {(() => {
+        const activeHandlingOrderData = activeHandlingOrder
+          ? orders.find((o) => o.id === activeHandlingOrder.orderId)
+          : null;
+
+        return (
+          <StaffModal
+            isOpen={isStaffModalOpen}
+            categoryName={activeHandlingOrder?.category}
+            orderShortId={activeHandlingOrderData?.shortId}
+            orderTotal={activeHandlingOrderData?.total}
+            staffList={staffList}
+            onAddStaffName={handleAddStaffName}
+            onSubmit={handleStaffSubmit}
+            onCancel={() => {
+              setIsStaffModalOpen(false);
+              setActiveHandlingOrder(null);
+            }}
+          />
+        );
+      })()}
 
       <AddItemModal
         isOpen={isAddItemModalOpen}

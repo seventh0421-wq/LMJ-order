@@ -38,6 +38,9 @@ import {
   Boxes,
   Minus,
   Plus,
+  Coins,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import { sendTestDiscordNotification } from '../lib/webhook';
 import { checkIsBusinessOpen } from '../lib/businessHours';
@@ -61,6 +64,9 @@ const getYesterdayStr = () => {
 interface BackViewProps {
   orders: Order[];
   menuItems: MenuItem[];
+  staffList?: string[];
+  onAddStaffName?: (name: string) => void;
+  onRemoveStaffName?: (name: string) => void;
   onTakeOrder: (orderId: string, category: CategoryType) => void;
   onDeleteOrder: (orderId: string) => void;
   onToggleItemSoldOut: (itemId: string) => void;
@@ -77,6 +83,9 @@ interface BackViewProps {
 export const BackView: React.FC<BackViewProps> = ({
   orders,
   menuItems,
+  staffList = [],
+  onAddStaffName,
+  onRemoveStaffName,
   onTakeOrder,
   onDeleteOrder,
   onToggleItemSoldOut,
@@ -90,6 +99,7 @@ export const BackView: React.FC<BackViewProps> = ({
   onUpdateBusinessHoursConfig,
 }) => {
   const [staffCount, setStaffCount] = useState<number>(1);
+  const [newStaffInput, setNewStaffInput] = useState<string>('');
   const [inputWebhook, setInputWebhook] = useState<string>(discordWebhookUrl);
   const [menuFilterCat, setMenuFilterCat] = useState<string>('全部');
 
@@ -173,10 +183,12 @@ export const BackView: React.FC<BackViewProps> = ({
     }
   };
 
-  // Map each item name to its category
+  // Map each item name to its category and unit price
   const itemCategoryMap: Record<string, CategoryType> = {};
+  const itemPriceMap: Record<string, number> = {};
   menuItems.forEach((item) => {
     itemCategoryMap[item.name] = item.category;
+    itemPriceMap[item.name] = item.price;
   });
 
   const handleDeleteOrderConfirm = (orderId: string, shortId: string) => {
@@ -278,9 +290,20 @@ export const BackView: React.FC<BackViewProps> = ({
     .slice(0, 4);
 
   // Categorize pending orders into the three areas
-  const pendingInner: Array<{ orderKey: string; orderId: string; category: CategoryType; time: string; items: Record<string, number> }> = [];
-  const pendingOuter: Array<{ orderKey: string; orderId: string; category: CategoryType; time: string; items: Record<string, number> }> = [];
-  const pendingMobile: Array<{ orderKey: string; orderId: string; category: CategoryType; time: string; items: Record<string, number> }> = [];
+  interface PendingOrderGroup {
+    orderKey: string;
+    orderId: string;
+    customerName: string;
+    category: CategoryType;
+    time: string;
+    items: Record<string, number>;
+    orderTotal: number;
+    categoryTotal: number;
+  }
+
+  const pendingInner: PendingOrderGroup[] = [];
+  const pendingOuter: PendingOrderGroup[] = [];
+  const pendingMobile: PendingOrderGroup[] = [];
 
   // Consider all orders that are not fully completed yet or have pending categories
   orders.forEach((order) => {
@@ -294,10 +317,17 @@ export const BackView: React.FC<BackViewProps> = ({
       '室內外點心': {},
     };
 
+    const categorizedTotals: Record<CategoryType, number> = {
+      '室內套餐': 0,
+      '戶外套餐': 0,
+      '室內外點心': 0,
+    };
+
     order.items.forEach((item) => {
       const category = itemCategoryMap[item.name] || item.category || '室內外點心';
       categorizedItems[category][item.name] =
         (categorizedItems[category][item.name] || 0) + 1;
+      categorizedTotals[category] += item.price;
     });
 
     const timeString = new Date(order.timestamp).toLocaleTimeString('zh-TW', {
@@ -309,9 +339,12 @@ export const BackView: React.FC<BackViewProps> = ({
       pendingInner.push({
         orderKey: order.id,
         orderId: order.shortId,
+        customerName: order.customerName,
         category: '室內套餐',
         time: timeString,
         items: categorizedItems['室內套餐'],
+        orderTotal: order.total,
+        categoryTotal: categorizedTotals['室內套餐'],
       });
     }
 
@@ -319,9 +352,12 @@ export const BackView: React.FC<BackViewProps> = ({
       pendingOuter.push({
         orderKey: order.id,
         orderId: order.shortId,
+        customerName: order.customerName,
         category: '戶外套餐',
         time: timeString,
         items: categorizedItems['戶外套餐'],
+        orderTotal: order.total,
+        categoryTotal: categorizedTotals['戶外套餐'],
       });
     }
 
@@ -329,9 +365,12 @@ export const BackView: React.FC<BackViewProps> = ({
       pendingMobile.push({
         orderKey: order.id,
         orderId: order.shortId,
+        customerName: order.customerName,
         category: '室內外點心',
         time: timeString,
         items: categorizedItems['室內外點心'],
+        orderTotal: order.total,
+        categoryTotal: categorizedTotals['室內外點心'],
       });
     }
   });
@@ -910,7 +949,7 @@ export const BackView: React.FC<BackViewProps> = ({
                   目前無室內套餐待辦
                 </div>
               ) : (
-                pendingInner.map((p, idx) => (
+                  pendingInner.map((p, idx) => (
                   <div
                     key={`inner-${p.orderKey}-${idx}`}
                     className="border-2 border-red-200 p-3.5 rounded-lg bg-white shadow-sm flex flex-col justify-between transition-all hover:border-red-400"
@@ -924,18 +963,54 @@ export const BackView: React.FC<BackViewProps> = ({
                           【{p.orderId}】
                         </span>
                       </div>
-                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
-                        {Object.entries(p.items).map(([name, qty]) => (
-                          <li key={name}>
-                            {name}{' '}
-                            <span className="text-red-600 font-black px-1.5 py-0.5 bg-red-100 rounded text-sm">
-                              x{qty}
+
+                      {/* 顧客姓名 */}
+                      <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                        <span>顧客：</span>
+                        <span className="text-gray-900 font-black">{p.customerName}</span>
+                      </div>
+
+                      {/* 訂單總金額與本區金額 */}
+                      <div className="bg-red-50/80 border border-red-200 rounded-lg p-2 mb-3 flex items-center justify-between">
+                        <span className="text-xs font-black text-red-900 flex items-center gap-1">
+                          <Coins className="w-3.5 h-3.5 text-amber-600" />
+                          訂單金額：
+                        </span>
+                        <div className="text-right">
+                          <span className="font-dela font-black text-base text-red-700">
+                            ${p.orderTotal.toLocaleString()} G
+                          </span>
+                          {p.categoryTotal !== p.orderTotal && (
+                            <span className="block text-[11px] font-bold text-gray-500">
+                              (本區餐點 ${p.categoryTotal.toLocaleString()} G)
                             </span>
-                          </li>
-                        ))}
+                          )}
+                        </div>
+                      </div>
+
+                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
+                        {Object.entries(p.items).map(([name, qty]) => {
+                          const unitPrice = itemPriceMap[name] || 0;
+                          return (
+                            <li key={name} className="flex justify-between items-center pr-1">
+                              <span>
+                                {name}{' '}
+                                <span className="text-red-600 font-black px-1.5 py-0.5 bg-red-100 rounded text-sm ml-1">
+                                  x{qty}
+                                </span>
+                              </span>
+                              {unitPrice > 0 && (
+                                <span className="text-xs font-extrabold text-gray-500">
+                                  ${(unitPrice * qty).toLocaleString()} G
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() => onTakeOrder(p.orderKey, '室內套餐')}
                         className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
@@ -983,18 +1058,54 @@ export const BackView: React.FC<BackViewProps> = ({
                           【{p.orderId}】
                         </span>
                       </div>
-                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
-                        {Object.entries(p.items).map(([name, qty]) => (
-                          <li key={name}>
-                            {name}{' '}
-                            <span className="text-blue-600 font-black px-1.5 py-0.5 bg-blue-100 rounded text-sm">
-                              x{qty}
+
+                      {/* 顧客姓名 */}
+                      <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                        <span>顧客：</span>
+                        <span className="text-gray-900 font-black">{p.customerName}</span>
+                      </div>
+
+                      {/* 訂單總金額與本區金額 */}
+                      <div className="bg-blue-50/80 border border-blue-200 rounded-lg p-2 mb-3 flex items-center justify-between">
+                        <span className="text-xs font-black text-blue-900 flex items-center gap-1">
+                          <Coins className="w-3.5 h-3.5 text-amber-600" />
+                          訂單金額：
+                        </span>
+                        <div className="text-right">
+                          <span className="font-dela font-black text-base text-blue-700">
+                            ${p.orderTotal.toLocaleString()} G
+                          </span>
+                          {p.categoryTotal !== p.orderTotal && (
+                            <span className="block text-[11px] font-bold text-gray-500">
+                              (本區餐點 ${p.categoryTotal.toLocaleString()} G)
                             </span>
-                          </li>
-                        ))}
+                          )}
+                        </div>
+                      </div>
+
+                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
+                        {Object.entries(p.items).map(([name, qty]) => {
+                          const unitPrice = itemPriceMap[name] || 0;
+                          return (
+                            <li key={name} className="flex justify-between items-center pr-1">
+                              <span>
+                                {name}{' '}
+                                <span className="text-blue-600 font-black px-1.5 py-0.5 bg-blue-100 rounded text-sm ml-1">
+                                  x{qty}
+                                </span>
+                              </span>
+                              {unitPrice > 0 && (
+                                <span className="text-xs font-extrabold text-gray-500">
+                                  ${(unitPrice * qty).toLocaleString()} G
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() => onTakeOrder(p.orderKey, '戶外套餐')}
                         className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
@@ -1042,18 +1153,54 @@ export const BackView: React.FC<BackViewProps> = ({
                           【{p.orderId}】
                         </span>
                       </div>
-                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
-                        {Object.entries(p.items).map(([name, qty]) => (
-                          <li key={name}>
-                            {name}{' '}
-                            <span className="text-emerald-700 font-black px-1.5 py-0.5 bg-emerald-100 rounded text-sm">
-                              x{qty}
+
+                      {/* 顧客姓名 */}
+                      <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                        <span>顧客：</span>
+                        <span className="text-gray-900 font-black">{p.customerName}</span>
+                      </div>
+
+                      {/* 訂單總金額與本區金額 */}
+                      <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg p-2 mb-3 flex items-center justify-between">
+                        <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+                          <Coins className="w-3.5 h-3.5 text-amber-600" />
+                          訂單金額：
+                        </span>
+                        <div className="text-right">
+                          <span className="font-dela font-black text-base text-emerald-700">
+                            ${p.orderTotal.toLocaleString()} G
+                          </span>
+                          {p.categoryTotal !== p.orderTotal && (
+                            <span className="block text-[11px] font-bold text-gray-500">
+                              (本區餐點 ${p.categoryTotal.toLocaleString()} G)
                             </span>
-                          </li>
-                        ))}
+                          )}
+                        </div>
+                      </div>
+
+                      <ul className="list-disc pl-5 font-bold text-base mb-3 text-gray-800 space-y-1">
+                        {Object.entries(p.items).map(([name, qty]) => {
+                          const unitPrice = itemPriceMap[name] || 0;
+                          return (
+                            <li key={name} className="flex justify-between items-center pr-1">
+                              <span>
+                                {name}{' '}
+                                <span className="text-emerald-700 font-black px-1.5 py-0.5 bg-emerald-100 rounded text-sm ml-1">
+                                  x{qty}
+                                </span>
+                              </span>
+                              {unitPrice > 0 && (
+                                <span className="text-xs font-extrabold text-gray-500">
+                                  ${(unitPrice * qty).toLocaleString()} G
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() => onTakeOrder(p.orderKey, '室內外點心')}
                         className="retro-btn flex-1 py-2 text-sm retro-btn-green flex items-center justify-center gap-1"
@@ -1171,6 +1318,97 @@ export const BackView: React.FC<BackViewProps> = ({
               {salaryPerStaff.toLocaleString()}
             </span>{' '}
             <span className="text-green-700 font-black text-3xl">G</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 店員名單與接單選單管理區 */}
+      <div className="retro-border p-6 bg-white shadow-xl rounded-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-red-700 pb-3 mb-4">
+          <div>
+            <h2 className="text-2xl font-black text-red-700 flex items-center gap-2">
+              <Users className="w-7 h-7 text-red-600" />
+              店員名單管理 (接單選單設定)
+            </h2>
+            <p className="text-xs text-gray-500 font-bold mt-0.5">
+              此處名單將列為店員接單時的下拉選單選項，並自動加入防偽店員姓名保護庫。
+            </p>
+          </div>
+          <span className="bg-red-100 text-red-800 text-sm font-black px-3 py-1 rounded-full border border-red-300 self-start sm:self-auto">
+            現有名單：{staffList.length} 位
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {/* 現有店員標籤 */}
+          <div className="flex flex-wrap gap-2 items-center min-h-[44px] p-3 bg-amber-50 rounded-xl border border-amber-200">
+            {staffList.length === 0 ? (
+              <span className="text-gray-400 text-sm font-bold italic">尚無預設名單</span>
+            ) : (
+              staffList.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-black bg-white border-2 border-red-600 text-red-800 shadow-xs"
+                >
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                  {name}
+                  {onRemoveStaffName && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveStaffName(name)}
+                      className="text-gray-400 hover:text-red-700 ml-1 rounded-full p-0.5"
+                      title={`刪除 ${name}`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </span>
+              ))
+            )}
+          </div>
+
+          {/* 新增店員表單 */}
+          <div className="flex flex-wrap sm:flex-nowrap gap-3 items-center pt-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <input
+                type="text"
+                value={newStaffInput}
+                onChange={(e) => setNewStaffInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (newStaffInput.trim() && onAddStaffName) {
+                      onAddStaffName(newStaffInput.trim());
+                      setNewStaffInput('');
+                    }
+                  }
+                }}
+                placeholder="輸入新店員名字 (例如：阿龍、小咪)..."
+                className="w-full border-2 border-red-700 px-3.5 py-2 rounded-xl text-base font-bold bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-inner"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={!newStaffInput.trim()}
+              onClick={() => {
+                if (newStaffInput.trim() && onAddStaffName) {
+                  onAddStaffName(newStaffInput.trim());
+                  setNewStaffInput('');
+                }
+              }}
+              className="retro-btn px-4 py-2 text-sm retro-btn-green font-black flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              <UserPlus className="w-4 h-4" />
+              新增店員名字
+            </button>
+            <button
+              type="button"
+              onClick={() => setStaffCount(Math.max(1, staffList.length))}
+              className="retro-btn px-3 py-2 text-xs retro-btn-yellow font-black shrink-0"
+              title="將上班分紅人數設定為目前名單人數"
+            >
+              設分紅人數為 {staffList.length} 人
+            </button>
           </div>
         </div>
       </div>
