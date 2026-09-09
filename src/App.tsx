@@ -70,11 +70,12 @@ export default function App() {
     });
   };
 
-  const DEFAULT_DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1536593869272256543/Oos0-Url4hj9nKV9OMmA_Y7qCtIfhS9yq20qcULQZuWkSMmGIQirEj2PtD4HdR49MLk9';
+  const DEFAULT_DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1547046817924124742/wUV309ThGzugO6JnJZ0Ayxe5vYfHA0pa0xQMAUGSFvnNqRN3sfNPb2WL2t3KPcctFZAa';
 
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState<string>(() => {
     const saved = localStorage.getItem('discord_webhook_url');
-    if (saved) return saved;
+    const OLD_DEFAULT_WEBHOOK = 'https://discord.com/api/webhooks/1536593869272256543/Oos0-Url4hj9nKV9OMmA_Y7qCtIfhS9yq20qcULQZuWkSMmGIQirEj2PtD4HdR49MLk9';
+    if (saved && saved !== OLD_DEFAULT_WEBHOOK) return saved;
     localStorage.setItem('discord_webhook_url', DEFAULT_DISCORD_WEBHOOK);
     return DEFAULT_DISCORD_WEBHOOK;
   });
