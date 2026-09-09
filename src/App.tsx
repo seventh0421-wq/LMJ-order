@@ -672,8 +672,6 @@ export default function App() {
             onClearData={handleClearData}
             onOpenAddItemModal={() => setIsAddItemModalOpen(true)}
             onReturnToFront={() => setActiveTab('front')}
-            discordWebhookUrl={discordWebhookUrl}
-            onUpdateDiscordWebhookUrl={handleUpdateDiscordWebhookUrl}
             businessHoursConfig={businessHoursConfig}
             onUpdateBusinessHoursConfig={handleUpdateBusinessHoursConfig}
           />

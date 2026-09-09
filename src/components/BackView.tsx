@@ -16,11 +16,8 @@ import {
   ArrowLeft,
   UserCheck,
   Bell,
-  Send,
-  HelpCircle,
   Check,
   ExternalLink,
-  MessageSquare,
   Sparkles,
   Clock,
   Store,
@@ -42,7 +39,6 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
-import { sendTestDiscordNotification } from '../lib/webhook';
 import { checkIsBusinessOpen } from '../lib/businessHours';
 
 const getLocalDateString = (ts: number): string => {
@@ -74,8 +70,6 @@ interface BackViewProps {
   onClearData: () => void;
   onOpenAddItemModal: () => void;
   onReturnToFront: () => void;
-  discordWebhookUrl: string;
-  onUpdateDiscordWebhookUrl: (url: string) => void;
   businessHoursConfig: BusinessHoursConfig;
   onUpdateBusinessHoursConfig: (config: BusinessHoursConfig) => void;
 }
@@ -93,27 +87,17 @@ export const BackView: React.FC<BackViewProps> = ({
   onClearData,
   onOpenAddItemModal,
   onReturnToFront,
-  discordWebhookUrl,
-  onUpdateDiscordWebhookUrl,
   businessHoursConfig,
   onUpdateBusinessHoursConfig,
 }) => {
   const [staffCount, setStaffCount] = useState<number>(1);
   const [newStaffInput, setNewStaffInput] = useState<string>('');
-  const [inputWebhook, setInputWebhook] = useState<string>(discordWebhookUrl);
   const [menuFilterCat, setMenuFilterCat] = useState<string>('全部');
 
   // Daily statistics and history search state
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayStr());
   const [historyFilterMode, setHistoryFilterMode] = useState<'selected' | 'all'>('selected');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
-
-  useEffect(() => {
-    setInputWebhook(discordWebhookUrl);
-  }, [discordWebhookUrl]);
-  const [isSaved, setIsSaved] = useState<boolean>(false);
-  const [testStatus, setTestStatus] = useState<{ loading: boolean; msg: string; success?: boolean } | null>(null);
-  const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
   // Business Hours State (Manual Open / Close Only)
   const isBusinessOpen =
@@ -158,29 +142,6 @@ export const BackView: React.FC<BackViewProps> = ({
     });
     setIsHoursSaved(true);
     setTimeout(() => setIsHoursSaved(false), 2000);
-  };
-
-  const handleSaveWebhook = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    onUpdateDiscordWebhookUrl(inputWebhook.trim());
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
-  };
-
-  const handleTestWebhook = async () => {
-    const url = inputWebhook.trim() || discordWebhookUrl.trim();
-    if (!url) {
-      setTestStatus({ loading: false, msg: '⚠️ 請先輸入 Discord Webhook 網址！', success: false });
-      return;
-    }
-
-    setTestStatus({ loading: true, msg: '⏳ 發送測試訊息中...' });
-    const res = await sendTestDiscordNotification(url);
-    if (res.success) {
-      setTestStatus({ loading: false, msg: '🎉 發送成功！請檢查您的 Discord 頻道。', success: true });
-    } else {
-      setTestStatus({ loading: false, msg: `❌ 發送失敗：${res.error}`, success: false });
-    }
   };
 
   // Map each item name to its category and unit price
@@ -528,173 +489,6 @@ export const BackView: React.FC<BackViewProps> = ({
             </div>
           </form>
         </div>
-      </div>
-
-      {/* Discord Webhook 通知設定與教學卡片 */}
-      <div className="retro-border p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-xl shadow-xl">
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-indigo-700/60">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-600 rounded-lg shadow-md text-amber-300">
-              <MessageSquare className="w-6 h-6 animate-bounce" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black font-dela tracking-wide text-amber-300 flex items-center gap-2">
-                Discord 點餐即時通知設定
-                {discordWebhookUrl.trim() ? (
-                  <span className="text-xs bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full border border-emerald-300">
-                    🟢 已啟用
-                  </span>
-                ) : (
-                  <span className="text-xs bg-gray-500 text-gray-200 font-bold px-2 py-0.5 rounded-full border border-gray-400">
-                    ⚪ 未設定網址
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-indigo-200 font-bold mt-0.5">
-                當客人送出點餐時，系統會自動發送通知到您的 Discord 頻道
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowTutorial(!showTutorial)}
-            className="bg-indigo-700 hover:bg-indigo-600 text-amber-300 border-2 border-indigo-500 px-3.5 py-1.5 rounded-lg text-sm font-extrabold flex items-center gap-1.5 transition-all active:scale-95 shadow-md"
-          >
-            <HelpCircle className="w-4 h-4" />
-            {showTutorial ? '隱藏教學指引' : '📖 DC Webhook 設定教學'}
-          </button>
-        </div>
-
-        {/* Webhook 設定表單 */}
-        <form onSubmit={handleSaveWebhook} className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={inputWebhook}
-                onChange={(e) => setInputWebhook(e.target.value)}
-                placeholder="請貼上 Discord Webhook 網址 (https://discord.com/api/webhooks/...)"
-                className="w-full bg-slate-950/80 border-2 border-indigo-400/70 focus:border-amber-400 rounded-lg px-3.5 py-2.5 text-sm text-amber-100 placeholder-indigo-300/60 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400/40"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="retro-btn px-4 py-2 text-sm bg-amber-500 hover:bg-amber-400 text-red-950 font-black border-amber-800 shadow-amber-950 flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                {isSaved ? <Check className="w-4 h-4 text-emerald-900" /> : <Sparkles className="w-4 h-4" />}
-                {isSaved ? '已儲存！' : '儲存網址'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestWebhook}
-                disabled={testStatus?.loading}
-                className="retro-btn px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-black border-emerald-900 shadow-emerald-950 flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                <Send className="w-4 h-4" />
-                {testStatus?.loading ? '測試中...' : '發送測試'}
-              </button>
-            </div>
-          </div>
-
-          {/* 測試狀態訊息 */}
-          {testStatus && (
-            <div
-              className={`p-2.5 rounded-lg text-sm font-bold border flex items-center gap-2 ${
-                testStatus.success
-                  ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200'
-                  : testStatus.loading
-                  ? 'bg-amber-950/80 border-amber-500 text-amber-200'
-                  : 'bg-rose-950/80 border-rose-500 text-rose-200'
-              }`}
-            >
-              <span>{testStatus.msg}</span>
-            </div>
-          )}
-        </form>
-
-        {/* Discord Webhook 教學指引 (下拉展開或卡片) */}
-        {showTutorial && (
-          <div className="mt-4 pt-4 border-t border-indigo-700/80 bg-slate-950/90 rounded-xl p-4 sm:p-5 text-indigo-100 border-2 border-amber-400/50 space-y-4 animate-in fade-in duration-200">
-            <div className="flex justify-between items-center border-b border-indigo-800 pb-2">
-              <h4 className="text-lg font-black text-amber-300 flex items-center gap-2 font-dela">
-                <HelpCircle className="w-5 h-5 text-amber-400" />
-                如何建立與取得 Discord Webhook 網址教學？
-              </h4>
-              <button
-                onClick={() => setShowTutorial(false)}
-                className="text-xs bg-indigo-900 hover:bg-indigo-800 text-indigo-200 px-2 py-1 rounded"
-              >
-                關閉教學 ✕
-              </button>
-            </div>
-
-            <ol className="space-y-3 text-sm font-semibold">
-              <li className="flex gap-3 items-start bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-800">
-                <span className="bg-amber-400 text-slate-950 font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs">
-                  1
-                </span>
-                <div>
-                  <span className="text-amber-200 font-extrabold">打開您的 Discord 伺服器</span>
-                  <p className="text-xs text-indigo-300 mt-0.5">
-                    進入您要接收點餐通知的 Discord 伺服器（需要有頻道管理權限）。
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex gap-3 items-start bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-800">
-                <span className="bg-amber-400 text-slate-950 font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs">
-                  2
-                </span>
-                <div>
-                  <span className="text-amber-200 font-extrabold">進入頻道設定</span>
-                  <p className="text-xs text-indigo-300 mt-0.5">
-                    在要接收通知的文字頻道（例如 <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300">#點餐通知</code>）右側，點擊 <span className="text-white bg-indigo-800 px-1.5 py-0.5 rounded">⚙️ 編輯頻道</span>。
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex gap-3 items-start bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-800">
-                <span className="bg-amber-400 text-slate-950 font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs">
-                  3
-                </span>
-                <div>
-                  <span className="text-amber-200 font-extrabold">點擊「整合 (Integrations)」與建立 Webhook</span>
-                  <p className="text-xs text-indigo-300 mt-0.5">
-                    在左側選單選擇 <span className="text-white bg-indigo-800 px-1.5 py-0.5 rounded">整合</span> ➜ 點擊 <span className="text-white bg-indigo-800 px-1.5 py-0.5 rounded">Webhooks (網絡鉤子)</span> ➜ 點擊 <span className="text-amber-300 font-bold">「建立 Webhook」</span> 或選擇現有的 Webhook。
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex gap-3 items-start bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-800">
-                <span className="bg-amber-400 text-slate-950 font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs">
-                  4
-                </span>
-                <div>
-                  <span className="text-amber-200 font-extrabold">複製 Webhook 網址</span>
-                  <p className="text-xs text-indigo-300 mt-0.5">
-                    可替該 Webhook 自訂名稱（例如：<code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300">復古點餐機器人</code>），然後點擊 <span className="text-amber-300 font-bold border-b border-dashed border-amber-300">「複製 Webhook 網址」</span> 按鈕。
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex gap-3 items-start bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-800">
-                <span className="bg-amber-400 text-slate-950 font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs">
-                  5
-                </span>
-                <div>
-                  <span className="text-amber-200 font-extrabold">貼上並儲存設定</span>
-                  <p className="text-xs text-indigo-300 mt-0.5">
-                    將複製好的網址（格式如：<code className="bg-slate-900 px-1 py-0.5 rounded text-emerald-400">https://discord.com/api/webhooks/123456...</code>）貼入上面的輸入框中，點擊 **「儲存網址」**，並按 **「發送測試」** 即可完成設定！
-                  </p>
-                </div>
-              </li>
-            </ol>
-          </div>
-        )}
       </div>
 
       {/* 菜單餐點售賣與庫存狀態管理 (賣完就沒有開關) */}
